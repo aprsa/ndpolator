@@ -1,0 +1,60 @@
+# ndpolator build specification
+# 
+# Refer to the following document for specification:
+#   https://packaging.python.org/en/latest/specifications/
+# 
+# Key specification is given here:
+#   https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#declaring-project-metadata
+# 
+# Classifier strings are given here:
+#   https://pypi.org/classifiers/
+
+[project]
+name = "ndpolator"
+version = "0.1"
+description = "ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+]
+maintainers = [
+    { name = "Andrej Prša", email = "aprsa@villanova.edu" },
+]
+keywords = [
+    "mathematics",
+    "interpolation",
+    "extrapolation",
+    "science",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "numpy",
+]
+
+[project.urls]
+repository = "https://github.com/aprsa/ndpolator"
+
+[build-system]
+requires = ["setuptools", "numpy", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "ndpolator",
+]
