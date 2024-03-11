@@ -3,8 +3,6 @@ from enum import IntEnum
 
 import cndpolator
 
-__version__ = '0.1.0'
-
 
 class ExtrapolationMethod(IntEnum):
     NONE = 0
@@ -65,7 +63,7 @@ class Ndpolator():
     def find_indices(self, table, query_pts):
         adtl_axes = self.table[table][0]
         axes = self.axes if adtl_axes is None else self.axes + adtl_axes
-        indices, flags, normed_query_pts = cndpolator.find(axes, query_pts)
+        indices, flags, normed_query_pts = cndpolator.find(axes, query_pts, len(self.axes))
         return indices, flags, normed_query_pts
 
     def find_hypercubes(self, table, indices, flags, adtl_axes=None):
