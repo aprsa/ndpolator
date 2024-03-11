@@ -4,7 +4,9 @@ ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse 
 Introduction
 ------------
 
-Ndpolator allows you to interpolate and/or extrapolate function values on an n-dimensional cartesian grid with missing values.
+Ndpolator is a module that enables you to interpolate and/or extrapolate function values on an n-dimensional cartesian grid with missing values. Given a sequence of axes (a 3D example is depicted below), ndpolator successively reduces the number of dimensions in which it interpolates and/or extrapolates. It starts with the corners of the $N$-dimensional hypercube (solid circles) to obtain interpolated values (open squares) in the $(N-1)$-dimensional hyperplane while keeping one of the axes constant. It then removes that axis and forms an $(N-1)$-dimensional hypercube from the interpolants. The process is then repeated and continued until we obtain the interpolant in the point of interest (open circle).
+
+<img src="../interpolation_3d.svg" width="80%"/>
 
 Overall logic
 -------------
