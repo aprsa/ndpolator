@@ -44,7 +44,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "numpy",
+    "numpy", "pytest"
 ]
 
 [project.urls]
@@ -57,4 +57,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = [
     "ndpolator",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
 ]
