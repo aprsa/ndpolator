@@ -1,2 +1,3 @@
 include README.md
 include src/*.h
+include docs/gh2doxy.py
