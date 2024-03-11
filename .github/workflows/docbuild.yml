@@ -1,0 +1,46 @@
+name: docbuild
+
+on:
+    workflow_dispatch:
+    pull_request:
+    push:
+        branches:
+            - 'main'
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+  
+concurrency:
+    group: "pages"
+    cancel-in-progress: false
+  
+jobs:
+    deploy:
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout ndpolator
+              uses: actions/checkout@v4
+            - name: setup python
+              uses: actions/setup-python@v4
+              with:
+                python-version: '3.11'
+            - name: install ndpolator
+              run: pip install .
+            - name: run doxygen
+              uses: mattnotmitt/doxygen-action@v1.9.8
+              with:
+                doxyfile-path: 'docs/Doxygen'
+            - name: setup github pages
+              uses: actions/configure-pages@v4
+            - name: upload docs
+              uses: actions/upload-pages-artifact@v3
+              with:
+                path: 'docs/html'
+            - name: deploy to github pages
+              id: deployment
+              uses: actions/deploy-pages@v4
