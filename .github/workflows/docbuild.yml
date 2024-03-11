@@ -34,7 +34,7 @@ jobs:
             - name: run doxygen
               uses: mattnotmitt/doxygen-action@v1.9.8
               with:
-                doxyfile-path: 'docs/Doxygen'
+                doxyfile-path: 'docs/Doxyfile'
             - name: setup github pages
               uses: actions/configure-pages@v4
             - name: upload docs
