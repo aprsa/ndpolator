@@ -1,1 +1,5 @@
 Doxyfile
+docs/html
+*.so
+__pycache__
+*.egg-info
