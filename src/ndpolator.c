@@ -480,27 +480,24 @@ ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
  * @brief Determines n-dimensional hypercubes that contain (or are adjacent
  * to) the query points identified by indices.
  *
- * @param nelems number of query points
- * @param indices a @p nelems -by- @p naxes array of indices
- * @param flags a @p nelems -by- @p naxes array of flags
- * @param table a (@p naxes + 1)-dimensional grid of @p vdim -dimensional
- * arrays
+ * @param qpts an #ndp_query_pts instance that holds all query point
+ * information
+ * @param table an #ndp_table instance that holds all axis/grid information
  *
  * @details
  * Hypercubes are n-dimensional subgrids that contain the point of interest
  * (i.e., a query point). If the query point lies within the hypercube, the
  * ndpolator will interpolate based on the function values in the hypercube.
  * If the query point is adjacent to the hypercube, ndpolator will extrapolate
- * instead. The hypercubes here need not be fully defined (although this might
- * be a better place to do it rather than in the #ndpolate() function as it is
- * currently implemented).
+ * instead. The hypercubes here need not be fully defined, i.e. there may be
+ * voids (nans) in the table grid.
  *
- * Depending on the @p flag, the dimension of the hypercube can be reduced. In
- * particular, if any query point component flag is set to #NDP_ON_VERTEX, then the
- * corresponding dimension is eliminated (there is no need to interpolate or
- * extrapolate when the value is already on the axis).
+ * Depending on @p qpts->flags, the dimension of the hypercube can be reduced.
+ * In particular, if any query point component flag is set to #NDP_ON_VERTEX,
+ * then the corresponding dimension is eliminated (there is no need to
+ * interpolate or extrapolate when the value is already on the axis).
  *
- * @return a #hypercube_info struct of hypercubes.
+ * @return an array of #ndp_hypercube instances, one per query point.
  */
 
 ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
@@ -596,19 +593,17 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
  * <!-- ndpolate() -->
  * @brief Runs linear interpolation or extrapolation in n dimensions.
  *
- * @param nelems number of query points
- * @param query_pts the flattened array of query points: for an n-dimensional
- * space, the @p query_pts array needs to be of length @p nelems x @p n, where
- * the flattening is done in the C order (last axis runs first)
- * @param table an #ndp_table structure that has all identifying information
- * on the interpolating grid itself
+ * @param qpts an #ndp_query_pts instance that holds all query point
+ * information
+ * @param table an #ndp_table instance that has all identifying information on
+ * the interpolating grid itself
  * @param extrapolation_method how extrapolation should be done; one of
  * #NDP_METHOD_NONE, #NDP_METHOD_NEAREST, or #NDP_METHOD_LINEAR.
  *
  * @details
  * This is the main workhorse on the ndpolator module. It assumes that the
  * main #ndp_table @p table structure has been set up. It takes the points of
- * interest @p query_pts and it calls #find_indices() and #find_hypercubes()
+ * interest, @p qpts, and it calls #find_indices() and #find_hypercubes()
  * consecutively, to populate the #ndp_query structure. While at it, the
  * function also checks whether any of the query point components are out of
  * bounds (flag = #NDP_OUT_OF_BOUNDS) and it prepares those query points for

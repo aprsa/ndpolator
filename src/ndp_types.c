@@ -448,7 +448,7 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
  * @brief #ndp_table constructor from the passed python objects.
  *
  * @param py_axes a tuple of ndarrays, one for each axis
- * @param py_nbasic an integer, number of basic (spanning) axes
+ * @param nbasic an integer, number of basic (spanning) axes
  * @param py_grid a numpy ndarray of all function values
  *
  * @details
@@ -513,7 +513,7 @@ int ndp_table_free(ndp_table *table)
  *
  * @details
  * Initializes a new #ndp_hypercube instance. It sets @p dim to 0, and it
- * NULLifies the @v array.
+ * NULLifies the @p v array.
  *
  * @return An initialized #ndp_hypercube instance.
  */
@@ -595,7 +595,7 @@ int ndp_hypercube_print(ndp_hypercube *hc, const char *prefix)
 /**
  * @brief #ndp_hypercube destructor.
  * 
- * @param hypercube a #ndp_hypercube instance to be freed
+ * @param hc a #ndp_hypercube instance to be freed
  * 
  * @details
  * Frees memory allocated for the #ndp_hypercube instance. That includes the @p v
