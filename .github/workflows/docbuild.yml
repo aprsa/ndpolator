@@ -33,10 +33,10 @@ jobs:
               run: chmod +x docs/gh2doxy.py
             - name: install ndpolator
               run: pip install .
+            - name: install doxygen
+              run: sudo apt install doxygen
             - name: run doxygen
-              uses: mattnotmitt/doxygen-action@v1.9.8
-              with:
-                doxyfile-path: 'docs/Doxyfile'
+              run: doxygen docs/Doxyfile
             - name: setup github pages
               uses: actions/configure-pages@v4
             - name: upload docs
