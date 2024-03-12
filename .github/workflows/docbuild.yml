@@ -34,7 +34,7 @@ jobs:
             - name: install ndpolator
               run: pip install .
             - name: install doxygen
-              run: apt install doxygen
+              run: sudo apt install doxygen
             - name: run doxygen
               run: doxygen docs/Doxyfile
             - name: setup github pages
