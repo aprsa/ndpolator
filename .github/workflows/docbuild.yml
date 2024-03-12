@@ -34,9 +34,7 @@ jobs:
             - name: install ndpolator
               run: pip install .
             - name: install doxygen
-              uses: ssciwr/doxygen-install@v1
-              with:
-                version: "1.9.1"
+              run: apt install doxygen
             - name: run doxygen
               run: doxygen docs/Doxyfile
             - name: setup github pages
