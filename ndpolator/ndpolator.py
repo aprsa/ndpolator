@@ -1,18 +1,7 @@
 import numpy as np
-from enum import IntEnum
-
 import cndpolator
 
-
-class ExtrapolationMethod(IntEnum):
-    NONE = 0
-    NEAREST = 1
-    LINEAR = 2
-
-
-class AxisFlag(IntEnum):
-    SPANNING_AXIS = 1
-    ADDITIONAL_AXIS = 2
+from cndpolator import ExtrapolationMethod
 
 
 class Ndpolator():
@@ -72,15 +61,16 @@ class Ndpolator():
         hypercubes = cndpolator.hypercubes(indices, axes, flags, grid)
         return hypercubes
 
-    def ndpolate(self, table, query_pts, extrapolation_method=0):
-        if extrapolation_method == 'none':
-            extrapolation_method = 0
-        elif extrapolation_method == 'nearest':
-            extrapolation_method = 1
-        elif extrapolation_method == 'linear':
-            extrapolation_method = 2
-        else:
-            raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of ['none', 'nearest', 'linear'].")
+    def ndpolate(self, table, query_pts, extrapolation_method='none'):
+        extrapolation_methods = {
+            'none': ExtrapolationMethod.NONE,
+            'nearest': ExtrapolationMethod.NEAREST,
+            'linear': ExtrapolationMethod.LINEAR
+        }
+
+        if extrapolation_method not in extrapolation_methods.keys():
+            raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of {extrapolation_methods.keys()}.")
+        extrapolation_method = extrapolation_methods.get(extrapolation_method, ExtrapolationMethod.NONE)
 
         capsule = self.table[table][2]
         if capsule:

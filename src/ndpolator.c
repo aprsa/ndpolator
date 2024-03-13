@@ -412,7 +412,7 @@ ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
 {
     int debug = 0;
     ndp_query_pts *query_pts = ndp_query_pts_new();
-    double rtol = 1e-3;  /* relative tolerance for vertex matching */
+    double rtol = 1e-6;  /* relative tolerance for vertex matching */
 
     ndp_query_pts_alloc(query_pts, nelems, axes->len);
 
@@ -719,7 +719,9 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
 
                     /* shift indices and normed query points to account for the new hypercube: */
                     for (int j = 0; j < table->axes->len; j++)
-                        qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j] + (qpts->flags[i * table->axes->len + j] == NDP_OUT_OF_BOUNDS) + ((NDP_ON_VERTEX & qpts->flags[i * table->axes->len + j]) == NDP_ON_VERTEX && qpts->indices[i * table->axes->len + j] > 0);
+                        qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j]
+                            + (qpts->flags[i * table->axes->len + j] == NDP_OUT_OF_BOUNDS && qpts->indices[i * table->axes->len + j] < table->axes->axis[j]->len-1)
+                            + ((NDP_ON_VERTEX & qpts->flags[i * table->axes->len + j]) == NDP_ON_VERTEX && qpts->indices[i * table->axes->len + j] > 0);
 
                     if (debug) {
                         printf("  updated query_pt[%d] = [", i);
