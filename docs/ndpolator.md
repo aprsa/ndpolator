@@ -42,7 +42,7 @@ Summary of ndpolator's terminology
 | **vertex**                | a real value that denotes a position on the axis                                          |
 | **axis**                  | an array of vertices                                                                      |
 | **basic axis**            | an axis that spans the sparse grid (i.e., grid points can be nodes or voids)              |
-| **attached axis**         | an axis that spans the full grid (i.e., all grid points are guaranteed to be nodes)       |
+| **associated axis**       | an axis that spans the full grid (i.e., all grid points are guaranteed to be nodes)       |
 | **axes**                  | a set of ``n`` axes that span the ``n``-dimensional grid; axes can have different lengths |
 | **grid point**            | a combination of vertices from each axis; one of the cartesian product elements           |
 | **function value**        | a number or an array that corresponds to a grid point                                     |

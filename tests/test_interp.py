@@ -28,7 +28,7 @@ def test_registration():
     ndp = ndpolator.Ndpolator(basic_axes=basic_axes)
 
     grid = np.random.normal(loc=1.0, scale=0.1, size=(len(ax1), len(ax2), len(ax3)))
-    ndp.register('main', attached_axes=None, grid=grid)
+    ndp.register('main', associated_axes=None, grid=grid)
     assert len(ndp.tables) == 1
 
 
@@ -41,7 +41,7 @@ def test_find_indices():
     ndp = ndpolator.Ndpolator(basic_axes=basic_axes)
 
     grid = np.random.normal(loc=1.0, scale=0.1, size=(len(ax1), len(ax2), len(ax3)))
-    ndp.register('main', attached_axes=None, grid=grid)
+    ndp.register('main', associated_axes=None, grid=grid)
 
     query_pts = np.array([
         [750, 2.25, 0.35],
@@ -91,7 +91,7 @@ def test_find_hypercubes():
     ndp = ndpolator.Ndpolator(basic_axes=basic_axes)
 
     grid = np.random.normal(loc=1.0, scale=0.1, size=(len(ax1), len(ax2), len(ax3), 1))
-    ndp.register('main', attached_axes=None, grid=grid)
+    ndp.register('main', associated_axes=None, grid=grid)
 
     query_pts = np.array([
         [750, 2.25, 0.35],
@@ -129,7 +129,7 @@ def test_ndpolate():
             for k, z in enumerate(ax3):
                 grid[i, j, k, 0] = fv((x, y, z))
 
-    ndp.register('main', attached_axes=None, grid=grid)
+    ndp.register('main', associated_axes=None, grid=grid)
 
     # regular interpolation:
     query_pts = np.ascontiguousarray(np.vstack((np.random.uniform(1000, 5000, 1000), np.random.uniform(1, 5, 1000), np.random.uniform(0.1, 0.5, 1000))).T)

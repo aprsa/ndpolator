@@ -67,7 +67,7 @@ for i, x in enumerate(ax1):
                 grid[i, j, k, 0] = fv((x, y, z))
 
 # label the grid ('main') and register it with the ndpolator instance:
-ndp.register(table='main', attached_axes=None, grid=grid)
+ndp.register(table='main', associated_axes=None, grid=grid)
 
 # draw query points randomly within and beyond the definition ranges:
 query_pts = np.ascontiguousarray(
