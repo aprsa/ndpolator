@@ -789,7 +789,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
  * @return a tuple of (indices, flags, normed_query_pts).
  */
 
-static PyObject *py_find(PyObject *self, PyObject *args)
+static PyObject *py_find(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyObject *py_axes, *py_indices, *py_flags, *py_normed_query_pts, *py_combo;
     PyArrayObject *py_query_pts;
@@ -805,7 +805,9 @@ static PyObject *py_find(PyObject *self, PyObject *args)
     ndp_axes *axes;
     ndp_query_pts *query_pts;
 
-    if (!PyArg_ParseTuple(args, "OOi", &py_axes, &py_query_pts, &nbasic))
+    static char *kwlist[] = {"axes", "query_pts", "nbasic", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi", kwlist, &py_axes, &py_query_pts, &nbasic))
         return NULL;
 
     naxes = PyTuple_Size(py_axes);
@@ -867,7 +869,7 @@ static PyObject *py_find(PyObject *self, PyObject *args)
  * @return an ndarray of hypercubes.
  */
 
-static PyObject *py_hypercubes(PyObject *self, PyObject *args)
+static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyArrayObject *py_indices, *py_flags, *py_grid;
     PyObject *py_axes;
@@ -882,7 +884,9 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args)
     PyObject *py_hypercubes;
     ndp_hypercube **hypercubes;
 
-    if (!PyArg_ParseTuple(args, "OOOO|i", &py_indices, &py_axes, &py_flags, &py_grid, &nbasic))
+    static char *kwlist[] = {"indices", "axes", "flags", "grid", "nbasic", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOO|i", kwlist, &py_indices, &py_axes, &py_flags, &py_grid, &nbasic))
         return NULL;
 
     nelems = PyArray_DIM(py_indices, 0);
@@ -1071,8 +1075,8 @@ int ndp_register_enums(PyObject *self)
 static PyMethodDef cndpolator_methods[] =
 {
     {"ndpolate", (PyCFunction) py_ndpolate, METH_VARARGS | METH_KEYWORDS, "C implementation of N-dimensional interpolation"},
-    {"find", py_find, METH_VARARGS, "find first greater-or-equal than"},
-    {"hypercubes", py_hypercubes, METH_VARARGS, "create a hypercube from the passed indices and a function value grid"},
+    {"find", (PyCFunction) py_find, METH_VARARGS | METH_KEYWORDS, "determine indices, flags and normalized query points"},
+    {"hypercubes", (PyCFunction) py_hypercubes, METH_VARARGS | METH_KEYWORDS, "determine enclosing hypercubes"},
     {"ainfo", py_ainfo, METH_VARARGS, "array information for internal purposes"},
     {NULL, NULL, 0, NULL}
 };

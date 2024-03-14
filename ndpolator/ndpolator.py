@@ -55,13 +55,13 @@ class Ndpolator():
 
         associated_axes = self.table[table][0]
         axes = self.axes if associated_axes is None else self.axes + associated_axes
-        indices, flags, normed_query_pts = cndpolator.find(axes, query_pts, len(self.axes))
+        indices, flags, normed_query_pts = cndpolator.find(axes=axes, query_pts=query_pts, nbasic=len(self.axes))
         return indices, flags, normed_query_pts
 
     def find_hypercubes(self, table, indices, flags, adtl_axes=None):
         axes = self.axes if adtl_axes is None else self.axes + adtl_axes
         grid = self.table[table][1]
-        hypercubes = cndpolator.hypercubes(indices, axes, flags, grid)
+        hypercubes = cndpolator.hypercubes(indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
     def ndpolate(self, table, query_pts, extrapolation_method='none'):
