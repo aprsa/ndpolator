@@ -63,7 +63,7 @@ The question of grid completeness is quite impactful for performance; that is wh
 
 ## Function value dimensionality
 
-The seventh and final operating principle concerns **function value dimensionality**. Most interpolators assume that the function value $\mathbf F$ is a scalar; ndpolator does not make that assumption. $\mathbf F_r(x_1, \dots, x_n)$ can be a scalar or a vector or arbitrary length $R$ (within reason, of course). It is then a requirement that all nodes are also $R$-dimensional. Ndpolator will then interpolate and extrapolate all function value components separately, and yield an $r$-dimensional estimate of the function value $\mathbf F$ in the point of interest.
+The seventh and final operating principle concerns **function value dimensionality**. Most interpolators assume that the function value $\mathbf F$ is a scalar; ndpolator does not make that assumption. $\mathbf F_r(x_1, \dots, x_n)$ can be a scalar or a vector or arbitrary length $R$ (within reason, of course). It is then a requirement that all nodes are also $R$-dimensional. Ndpolator will then interpolate and extrapolate all function value components separately, and yield an $R$-dimensional estimate of the function value $\mathbf F$ in the point of interest.
 
 ## Hypercube caching
 
