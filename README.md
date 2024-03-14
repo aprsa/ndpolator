@@ -38,7 +38,8 @@ A draft [JOSS](https://joss.theoj.org/) paper that describes the operational det
 
 To demonstrate the usage of ndpolator, let us consider a 3-dimensional space with three axes of vastly different vertex magnitudes. For comparison purposes, let the function that we want to interpolate and extrapolate be a linear scalar field:
 
-$$ \mathbf a_1 = \{1000, 2000, 3000, 4000, 5000\}, \mathbf a_2 = \{1, 2, 3, 4, 5\}, \mathbf a_3 = \{0.01, 0.02, 0.03, 0.04, 0.05\}, $$
+$$ \mathbf a_1 = (1000, 2000, 3000, 4000, 5000), \quad \mathbf a_2 = (1, 2, 3, 4, 5), \quad \mathbf a_3 = (0.01, 0.02, 0.03, 0.04, 0.05), $$
+
 $$ \mathbf F(x, y, z) = \frac{x}{1000} + y + 100 z. $$
 
 A suitable ndpolator instance would be initiated and operated as follows:
