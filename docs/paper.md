@@ -14,7 +14,6 @@ tags:
 authors:
   - name: Andrej Prša
     orcid: 0000-0002-1913-0281
-    affiliation: 1
     equal-contrib: false
 affiliations:
   - name: Villanova University, Department of Astrophysics and Planetary Science, USA
@@ -64,15 +63,15 @@ The question of grid completeness is quite impactful for performance; that is wh
 
 ## Function value dimensionality
 
-The seventh and final operating principle concerns **function value dimensionality**. Most interpolators assume that the function value $\mathbf F$ is a scalar; ndpolator does not make that assumption. $\mathbf F_r(x_1, \dots, x_n)$ can be a scalar or a vector or arbitrary length (within reason, of course). It is then a requirement that all nodes are also $r$-dimensional. Ndpolator will then interpolate and extrapolate all function value components separately, and yield an $r$-dimensional estimate of the function value $\mathbf F$ in the point of interest.
+The seventh and final operating principle concerns **function value dimensionality**. Most interpolators assume that the function value $\mathbf F$ is a scalar; ndpolator does not make that assumption. $\mathbf F_r(x_1, \dots, x_n)$ can be a scalar or a vector or arbitrary length $R$ (within reason, of course). It is then a requirement that all nodes are also $R$-dimensional. Ndpolator will then interpolate and extrapolate all function value components separately, and yield an $r$-dimensional estimate of the function value $\mathbf F$ in the point of interest.
 
 ## Hypercube caching
 
-While not explicitly a part of ndpolator's operating principles, ndpolator exposes two auxiliary functions, `find_indices()` and `find_hypercubes()`, that can be used to cache hypercubes. That way a calling program can group query points that are enclosed by a single hypercube and perform bulk interpolation without needing to find the corresponding hypercube for each query point successively. While the indexing and the hypercube search are both binary, avoiding the lookup when possible further optimizes the runtime.
+While not explicitly a part of ndpolator's operating principles, ndpolator exposes two auxiliary functions, `find_indices()` and `find_hypercubes()`, that can be used to cache hypercubes. That way, a calling program can group query points that are enclosed by a single hypercube and perform bulk interpolation without the need to find the corresponding hypercube for each query point successively. While the indexing and the hypercube search are both binary, avoiding the lookup when possible further optimizes the runtime.
 
 # API documentation and tests
 
-Ndpolator is released under the GNU General Public License and hosted on [github](https://github.com/aprsa/ndpolator). The Application Programming Interface (API) is available for the underlying C library on [gh-pages](https://aprsa.github.io/ndpolator). The test suite and documentation building are incorporated into github's Continuous Integration (CI) infrastructure. Any and all feedback, particularly issue reporting and pull requests, are most welcome.
+Ndpolator is released under the GNU General Public License and hosted on [github](https://github.com/aprsa/ndpolator). The Application Programming Interface (API) is available for the underlying C library on [gh-pages](https://aprsa.github.io/ndpolator). The test suite and automated API building are incorporated into github's Continuous Integration (CI) infrastructure. Any and all feedback, particularly issue reporting and pull requests, are most welcome.
 
 # Acknowledgements
 
