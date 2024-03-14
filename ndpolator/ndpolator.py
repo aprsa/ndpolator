@@ -43,15 +43,18 @@ class Ndpolator():
         """
         return list(self.table.keys())
 
-    def register(self, table, attached_axes, grid):
+    def register(self, table, associated_axes, grid):
         if not isinstance(table, str):
             raise ValueError('parameter `table` must be a string')
 
-        self.table[table] = [attached_axes, np.ascontiguousarray(grid), None]
+        self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
 
     def find_indices(self, table, query_pts):
-        adtl_axes = self.table[table][0]
-        axes = self.axes if adtl_axes is None else self.axes + adtl_axes
+        # make sure that the array we're passing to C is contiguous:
+        query_pts = np.ascontiguousarray(query_pts)
+
+        associated_axes = self.table[table][0]
+        axes = self.axes if associated_axes is None else self.axes + associated_axes
         indices, flags, normed_query_pts = cndpolator.find(axes, query_pts, len(self.axes))
         return indices, flags, normed_query_pts
 
@@ -72,13 +75,16 @@ class Ndpolator():
             raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of {extrapolation_methods.keys()}.")
         extrapolation_method = extrapolation_methods.get(extrapolation_method, ExtrapolationMethod.NONE)
 
+        # make sure that the array we're passing to C is contiguous:
+        query_pts = np.ascontiguousarray(query_pts)
+
         capsule = self.table[table][2]
         if capsule:
             interps = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
         else:
-            attached_axes = self.table[table][0]
+            associated_axes = self.table[table][0]
             grid = self.table[table][1]
-            axes = self.axes if attached_axes is None else self.axes + attached_axes
+            axes = self.axes if associated_axes is None else self.axes + associated_axes
 
             interps, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
             self.table[table][2] = capsule

@@ -54,12 +54,12 @@ int ndp_axis_free(ndp_axis *axis);
  * combination (cartesian product) of axis indices.
  *
  * There are two types of axes that ndpolator recognizes: _basic_ and
- * _attached_. Basic axes span the sparse grid: function values can either be
- * defined, or null. Attached axes, on the other hand, are _guaranteed_ to
- * have function values defined for all combinations of basic indices that
+ * _associated_. Basic axes span the sparse grid: function values can either
+ * be defined, or null. Associated axes, on the other hand, are _guaranteed_
+ * to have function values defined for all combinations of basic indices that
  * have function values defined. For example, if `(i, j, k)` are basic indices
  * that have a defined function value, then `(i, j, k, l, m)` are guaranteed
- * to be defined as well, where `l` and `m` index attached axes.
+ * to be defined as well, where `l` and `m` index associated axes.
  */
 
 typedef struct ndp_axes {
