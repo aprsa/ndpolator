@@ -386,8 +386,9 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
 }
 
 /**
- * <!-- find_indices() -->
- * @brief Determines hypercube indices based on the passed query points.
+ * <!-- ndp_query_pts_import() -->
+ * @brief Determines hypercube indices, flags, and normalized query point
+ * values based on the passed query points.
  *
  * @param nelems number of query points
  * @param qpts query points, an @p nelems -by- @p naxes array of doubles
@@ -408,7 +409,7 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
  * @return a #ndp_query_pts instance.
  */
 
-ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
+ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes)
 {
     int debug = 0;
     ndp_query_pts *query_pts = ndp_query_pts_new();
@@ -417,7 +418,7 @@ ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes)
     ndp_query_pts_alloc(query_pts, nelems, axes->len);
 
     if (debug) {
-        printf("find_indices():\n  number of query points=%d\n  query point dimension=%d\n", nelems, axes->len);
+        printf("ndp_query_pts_import():\n  number of query points=%d\n  query point dimension=%d\n", nelems, axes->len);
         for (int i = 0; i < axes->len; i++) {
             printf("  axis %d (length %d):\n    [", i, axes->axis[i]->len);
             for (int j = 0; j < axes->axis[i]->len; j++) {
@@ -603,11 +604,12 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
  * @details
  * This is the main workhorse on the ndpolator module. It assumes that the
  * main #ndp_table @p table structure has been set up. It takes the points of
- * interest, @p qpts, and it calls #find_indices() and #find_hypercubes()
- * consecutively, to populate the #ndp_query structure. While at it, the
- * function also checks whether any of the query point components are out of
- * bounds (flag = #NDP_OUT_OF_BOUNDS) and it prepares those query points for
- * extrapolation, depending on the @p extrapolation_method parameter.
+ * interest, @p qpts, and it calls #ndp_query_pts_import() and
+ * #find_hypercubes() consecutively, to populate the #ndp_query structure.
+ * While at it, the function also checks whether any of the query point
+ * components are out of bounds (flag = #NDP_OUT_OF_BOUNDS) and it prepares
+ * those query points for extrapolation, depending on the @p
+ * extrapolation_method parameter.
  *
  * Once the supporting structures are initialized and populated, #ndpolate()
  * will first handle the out-of-bounds elements. It will set the value of NAN
@@ -770,26 +772,26 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
 }
 
 /**
- * <!-- py_find() -->
- * @brief Python wrapper to the #find_indices() function.
- * 
+ * <!-- py_import_query_pts() -->
+ * @brief Python wrapper to the #ndp_query_pts_import() function.
+ *
  * @param self reference to the module object
  * @param args tuple (axes, query_pts)
- * 
+ *
  * @details
  * The wrapper takes a tuple of axes and an ndarray of query points, and it
- * calls #find_indices() to compute the indices, flags, and unit-normalized
- * query points w.r.t. the corresponding hypercube. These are returned in a
- * tuple to the calling function.
- * 
+ * calls #ndp_query_pts_import() to compute the indices, flags, and
+ * unit-normalized query points w.r.t. the corresponding hypercube. These are
+ * returned in a tuple to the calling function.
+ *
  * @note: In most (if not all) practical circumstances this function should
- * not be used because of the C-python data translation overhead. Instead,
- * use #py_ndpolate() instead as all allocation is done in C.
- * 
+ * not be used because of the C-python data translation overhead. Instead, use
+ * #py_ndpolate() instead as all allocation is done in C.
+ *
  * @return a tuple of (indices, flags, normed_query_pts).
  */
 
-static PyObject *py_find(PyObject *self, PyObject *args, PyObject *kwargs)
+static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyObject *py_axes, *py_indices, *py_flags, *py_normed_query_pts, *py_combo;
     PyArrayObject *py_query_pts;
@@ -826,7 +828,7 @@ static PyObject *py_find(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
-    query_pts = find_indices(nelems, qpts, axes);
+    query_pts = ndp_query_pts_import(nelems, qpts, axes);
 
     /* clean up: */
     for (i = 0; i < naxes; i++)
@@ -1003,7 +1005,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     int nelems = PyArray_DIM(py_query_pts, 0);
     double *qpts = PyArray_DATA(py_query_pts);
 
-    ndp_query_pts *query_pts = find_indices(nelems, qpts, table->axes);
+    ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
     ndp_query *query = ndpolate(query_pts, table, extrapolation_method);
 
     npy_intp adim[] = {nelems, table->vdim};
@@ -1075,7 +1077,7 @@ int ndp_register_enums(PyObject *self)
 static PyMethodDef cndpolator_methods[] =
 {
     {"ndpolate", (PyCFunction) py_ndpolate, METH_VARARGS | METH_KEYWORDS, "C implementation of N-dimensional interpolation"},
-    {"find", (PyCFunction) py_find, METH_VARARGS | METH_KEYWORDS, "determine indices, flags and normalized query points"},
+    {"find", (PyCFunction) py_import_query_pts, METH_VARARGS | METH_KEYWORDS, "determine indices, flags and normalized query points"},
     {"hypercubes", (PyCFunction) py_hypercubes, METH_VARARGS | METH_KEYWORDS, "determine enclosing hypercubes"},
     {"ainfo", py_ainfo, METH_VARARGS, "array information for internal purposes"},
     {NULL, NULL, 0, NULL}

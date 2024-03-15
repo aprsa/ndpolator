@@ -33,7 +33,7 @@ enum ndp_vertex_flag {
 };
 
 int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, int *mask);
-ndp_query_pts *find_indices(int nelems, double *qpts, ndp_axes *axes);
+ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes);
 ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table);
 ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method);
 

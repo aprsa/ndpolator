@@ -184,33 +184,4 @@ typedef struct ndp_query {
 ndp_query *ndp_query_new();
 int ndp_query_free(ndp_query *query);
 
-
-
-
-
-
-/**
- * <!-- struct index_info -->
- * @brief Stores all fields related to query point indexing.
- *
- * @details
- * Function #find_indices() computes three main deliverables that are stored
- * in this structure: (1) an array of indices, @p index, that correspond to
- * the superior hypercube corner that contains or is adjacent to the query
- * point; (2) an array of #ndp_vertex_flag flags, @p flag, for each component
- * of the query point; and (3) an array of unit hypercube-normalized query
- * points. Structure arrays are allocated by #find_indices() and need to be
- * freed once they are no longer required, typically by #ndp_query_free().
- */
-
-/**
- * <!-- struct hypercube_info -->
- * @brief Stores all fields related to the hypercubes.
- *
- * @details
- * Function #find_hypercubes() computes an array of #ndp_hypercube @p
- * hypercubes that correspond to each query point, and sets the out-of-bounds
- * flag for any query points that are off grid.
- */
-
 #endif

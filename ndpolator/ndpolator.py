@@ -49,7 +49,7 @@ class Ndpolator():
 
         self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
 
-    def find_indices(self, table, query_pts):
+    def import_query_pts(self, table, query_pts):
         # make sure that the array we're passing to C is contiguous:
         query_pts = np.ascontiguousarray(query_pts)
 

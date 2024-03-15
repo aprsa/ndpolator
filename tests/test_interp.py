@@ -32,7 +32,7 @@ def test_registration():
     assert len(ndp.tables) == 1
 
 
-def test_find_indices():
+def test_ndp_query_pts_import():
     ax1 = np.linspace(1000, 5000, 5)
     ax2 = np.linspace(1, 5, 5)
     ax3 = np.linspace(0.1, 0.5, 5)
@@ -51,7 +51,7 @@ def test_find_indices():
         [3000, 4.25, 0.525],
     ])
 
-    indices, flags, normed_query_pts = ndp.find_indices('main', query_pts=query_pts)
+    indices, flags, normed_query_pts = ndp.import_query_pts('main', query_pts=query_pts)
 
     expected_indices = np.array([
         [0, 2, 3],
@@ -103,7 +103,7 @@ def test_find_hypercubes():
         [3000, 4.0, 0.4]
     ])
 
-    indices, flags, normed_query_pts = ndp.find_indices('main', query_pts=query_pts)
+    indices, flags, normed_query_pts = ndp.import_query_pts('main', query_pts=query_pts)
     hypercubes = ndp.find_hypercubes('main', indices=indices, flags=flags)
 
     expected_hypercube_shape = [(2, 2, 2, 1), (2, 2, 2, 1), (2, 2, 1), (2, 1), (2, 2, 1), (2, 1), (1,)]
