@@ -67,7 +67,7 @@ The seventh and final operating principle concerns **function value dimensionali
 
 ## Hypercube caching
 
-While not explicitly a part of ndpolator's operating principles, ndpolator exposes two auxiliary functions, `find_indices()` and `find_hypercubes()`, that can be used to cache hypercubes. That way, a calling program can group query points that are enclosed by a single hypercube and perform bulk interpolation without the need to find the corresponding hypercube for each query point successively. While the indexing and the hypercube search are both binary, avoiding the lookup when possible further optimizes the runtime.
+While not explicitly a part of ndpolator's operating principles, ndpolator exposes two auxiliary functions, `import_query_pts()` and `find_hypercubes()`, that can be used to cache hypercubes. That way, a calling program can group query points that are enclosed by a single hypercube and perform bulk interpolation without the need to find the corresponding hypercube for each query point successively. While the indexing and the hypercube search are both binary, avoiding the lookup when possible further optimizes the runtime.
 
 # API documentation and tests
 
