@@ -14,10 +14,12 @@ tags:
 authors:
   - name: Andrej Prša
     orcid: 0000-0002-1913-0281
+    affiliation: 1
     equal-contrib: false
 affiliations:
   - name: Villanova University, Department of Astrophysics and Planetary Science, USA
-    date: 15 March 2023
+    index: 1
+date: 15 March 2023
 bibliography: paper.bib
 ---
 
