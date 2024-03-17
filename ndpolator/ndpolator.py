@@ -21,6 +21,11 @@ class Ndpolator():
         basic_axes : tuple of ndarrays
             Axes that span the atmosphere grid.
         """
+        if not isinstance(basic_axes, tuple):
+            raise TypeError('parameter `basic_axes` must be a tuple of numpy ndarrays')
+        for ti, telem in enumerate(basic_axes):
+            if not isinstance(telem, np.ndarray):
+                raise TypeError(f'the `basic_axes[{ti}]` element must be a numpy ndarray')
 
         self.axes = basic_axes
         self.table = dict()
@@ -71,13 +76,14 @@ class Ndpolator():
         """
         if not isinstance(table, str):
             raise TypeError('parameter `table` must be a string')
-        if not isinstance(associated_axes, tuple):
-            raise TypeError('parameter `associated_axes` must be a tuple of numpy ndarrays')
+        if associated_axes:
+            if not isinstance(associated_axes, tuple):
+                raise TypeError('parameter `associated_axes` must be a tuple of numpy ndarrays')
+            for ti, telem in enumerate(associated_axes):
+                if not isinstance(telem, np.ndarray):
+                    raise TypeError(f'the `associated_axes[{ti}]` element must be a numpy ndarray')
         if not isinstance(grid, np.ndarray):
             raise TypeError('parameter `grid` must be a numpy ndarray')
-        for ti, telem in enumerate(associated_axes):
-            if not isinstance(telem, np.ndarray):
-                raise TypeError(f'the `associated_axes[{ti}]` element must be a numpy ndarray')
 
         self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
 
