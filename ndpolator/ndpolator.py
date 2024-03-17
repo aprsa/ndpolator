@@ -8,7 +8,7 @@ class Ndpolator():
     """
     This class implements interpolation and extrapolation in n dimensions.
     """
-    def __init__(self, basic_axes):
+    def __init__(self, basic_axes: tuple) -> None:
         """
         Instantiates an Nndpolator class. The class relies on `axes` to span
         the interpolation hypercubes. Only basic (spanning) axes should
@@ -32,7 +32,7 @@ class Ndpolator():
         return f'<Ndpolator N={len(self.axes)}, {len(self.table)} tables>'
 
     @property
-    def tables(self):
+    def tables(self) -> list[str]:
         """
         Prints a list of tables attached to the ndpolator.
 
@@ -43,13 +43,13 @@ class Ndpolator():
         """
         return list(self.table.keys())
 
-    def register(self, table, associated_axes, grid):
+    def register(self, table: str, associated_axes: tuple, grid: np.ndarray) -> None:
         if not isinstance(table, str):
             raise ValueError('parameter `table` must be a string')
 
         self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
 
-    def import_query_pts(self, table, query_pts):
+    def import_query_pts(self, table: str, query_pts: np.ndarray) -> tuple:
         # make sure that the array we're passing to C is contiguous:
         query_pts = np.ascontiguousarray(query_pts)
 
@@ -58,13 +58,13 @@ class Ndpolator():
         indices, flags, normed_query_pts = cndpolator.find(axes=axes, query_pts=query_pts, nbasic=len(self.axes))
         return indices, flags, normed_query_pts
 
-    def find_hypercubes(self, table, indices, flags, adtl_axes=None):
+    def find_hypercubes(self, table: str, indices: np.ndarray, flags: np.ndarray, adtl_axes: tuple | None = None) -> np.ndarray:
         axes = self.axes if adtl_axes is None else self.axes + adtl_axes
         grid = self.table[table][1]
         hypercubes = cndpolator.hypercubes(indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
-    def ndpolate(self, table, query_pts, extrapolation_method='none'):
+    def ndpolate(self, table: str, query_pts: np.ndarray, extrapolation_method: str = 'none') -> np.ndarray:
         extrapolation_methods = {
             'none': ExtrapolationMethod.NONE,
             'nearest': ExtrapolationMethod.NEAREST,
