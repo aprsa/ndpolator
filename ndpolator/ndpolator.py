@@ -37,7 +37,7 @@ class Ndpolator():
         return f'<Ndpolator N={len(self.axes)}, {len(self.table)} tables>'
 
     @property
-    def tables(self) -> list[str]:
+    def tables(self) -> list:
         """
         Prints a list of tables attached to the ndpolator instance.
 
