@@ -798,7 +798,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     npy_intp *query_pts_shape;
 
-    int i, naxes, nelems, nbasic;
+    int naxes, nelems, nbasic;
 
     double *qpts;
     double *normed_qpts;
@@ -809,7 +809,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     static char *kwlist[] = {"axes", "query_pts", "nbasic", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi", kwlist, &py_axes, &py_query_pts, &nbasic))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi", kwlist, &py_axes, &py_query_pts, &nbasic))  /* all borrowed references */
         return NULL;
 
     naxes = PyTuple_Size(py_axes);
@@ -822,7 +822,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     axis = malloc(naxes*sizeof(*axis));
 
-    for (i = 0; i < naxes; i++) {
+    for (int i = 0; i < naxes; i++) {
         PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
         axis[i] = ndp_axis_new_from_data(PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis));
     }
@@ -831,7 +831,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     query_pts = ndp_query_pts_import(nelems, qpts, axes);
 
     /* clean up: */
-    for (i = 0; i < naxes; i++)
+    for (int i = 0; i < naxes; i++)
         free(axes->axis[i]);
     ndp_axes_free(axes);
 
