@@ -129,7 +129,7 @@ class Ndpolator():
         indices, flags, normed_query_pts = cndpolator.find(axes=axes, query_pts=query_pts, nbasic=len(self.axes))
         return indices, flags, normed_query_pts
 
-    def find_hypercubes(self, table: str, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple | None = None) -> np.ndarray:
+    def find_hypercubes(self, table: str, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple = None) -> np.ndarray:
         """
         Extracts and populates hypercubes for each query point based on the
         table reference, indices, flags and any associated axes.
