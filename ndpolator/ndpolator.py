@@ -10,7 +10,7 @@ class Ndpolator():
     It provides a "backbone" to the cndpolator C extension.
     """
 
-    def __init__(self, basic_axes: tuple[np.ndarray]) -> None:
+    def __init__(self, basic_axes: tuple) -> None:
         """
         Instantiates an Nndpolator class. The class relies on `basic_axes` to
         span the interpolation hypercubes. Only basic (spanning) axes should
@@ -87,7 +87,7 @@ class Ndpolator():
 
         self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
 
-    def import_query_pts(self, table: str, query_pts: np.ndarray) -> tuple[np.ndarray]:
+    def import_query_pts(self, table: str, query_pts: np.ndarray) -> tuple:
         """
         Imports and processes query points (points of interest). This entails
         finding the enclosing (or adjacent, if at the boundary of the grid)
