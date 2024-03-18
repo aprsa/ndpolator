@@ -11,7 +11,7 @@
 
 [project]
 name = "ndpolator"
-version = "0.1"
+version = "1.0"
 description = "ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids"
 readme = "README.md"
 requires-python = ">=3.7"

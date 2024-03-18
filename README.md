@@ -5,6 +5,7 @@
 ![Documentation](https://img.shields.io/github/actions/workflow/status/aprsa/ndpolator/docbuild.yml?label=docs-build)
 
 # Ndpolator
+
 Fast, n-dimensional linear interpolation and extrapolation on sparse grids.
 
 Ndpolator is a combined interpolator/extrapolator that operates on sparse (incompletely populated) $n$-dimensional grids. It estimates scalar or vector function values within and beyond the definition range of the grid while still avoiding the need to impute missing data or sacrifice the benefits of structured grids. Ndpolator is written in C for speed and portability; a python wrapper that uses numpy arrays is provided for convenience.
@@ -13,7 +14,13 @@ A high-level introduction to ndpolator is available [here (pdf)](https://github.
 
 # Installation
 
-To install ndpolator, clone the github repo and install with pip:
+Ndpolator sources are hosted on pypi; you can install the latest release by issuing:
+
+```bash
+pip install ndpolator
+```
+
+To install ndpolator from github, clone the repo and install it from the local directory with pip:
 
 ```bash
 $> git clone https://github.com/aprsa/ndpolator ndpolator
@@ -21,7 +28,7 @@ $> cd ndpolator
 $> pip install .
 ```
 
-Once installed, you can test it by running a pytest:
+Once installed, you can test the installation by running a pytest:
 
 ```bash
 $> cd tests
