@@ -158,8 +158,8 @@ int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int
 
     *flag = (x < axis->val[0] || x > axis->val[axis->len-1]) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
 
-    if ((l > 0 && fabs( (x - axis->val[l]) / (axis->val[l]-axis->val[l-1]) ) < rtol) ||
-        (l < axis->len && fabs((x-axis->val[l]) / (axis->val[l+1] - axis->val[l])) < rtol))
+    if ( (l  < axis->len - 1 && fabs((x - axis->val[l])/(axis->val[l+1]-axis->val[l])) < rtol) ||
+         (l == axis->len - 1 && fabs((x - axis->val[l])/(axis->val[l]-axis->val[l-1])) < rtol) )
         *flag |= NDP_ON_VERTEX;
 
     return l;
@@ -1011,6 +1011,13 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     npy_intp adim[] = {nelems, table->vdim};
     PyObject *py_interps = PyArray_SimpleNewFromData(2, adim, NPY_DOUBLE, query->interps);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_interps, NPY_ARRAY_OWNDATA);
+
+    ndp_query_pts_free(query_pts);
+    for (int i = 0; i < nelems; i++)
+        ndp_hypercube_free(query->hypercubes[i]);
+    /* do not free query->interps because they are passed to python. */
+    free(query->hypercubes);
+    free(query);
 
     if (capsule_available)
         return py_interps;

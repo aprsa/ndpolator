@@ -289,7 +289,7 @@ int ndp_query_pts_free(ndp_query_pts *qpts)
     if (qpts->flags)
         free(qpts->flags);
     if (qpts->requested)
-        free(qpts->normed);
+        free(qpts->requested);
     if (qpts->normed)
         free(qpts->normed);
     
@@ -625,6 +625,8 @@ ndp_query *ndp_query_new()
 {
     ndp_query *query = malloc(sizeof(*query));
 
+    query->interps = NULL;
+
     return query;
 }
 
@@ -642,6 +644,9 @@ ndp_query *ndp_query_new()
 
 int ndp_query_free(ndp_query *query)
 {
+    if (query->interps)
+        free(query->interps);
+
     free(query);
 
     return NDP_SUCCESS;

@@ -1,3 +1,4 @@
+local
 docs/html
 *.so
 __pycache__
