@@ -801,7 +801,6 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     int naxes, nelems, nbasic;
 
     double *qpts;
-    double *normed_qpts;
 
     ndp_axis **axis;
     ndp_axes *axes;
@@ -816,8 +815,6 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     nelems = PyArray_DIM(py_query_pts, 0);
     qpts = (double *) PyArray_DATA(py_query_pts);
 
-    normed_qpts = malloc(nelems * naxes * sizeof(*normed_qpts));
-
     query_pts_shape = PyArray_SHAPE(py_query_pts);
 
     axis = malloc(naxes*sizeof(*axis));
@@ -831,8 +828,6 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     query_pts = ndp_query_pts_import(nelems, qpts, axes);
 
     /* clean up: */
-    for (int i = 0; i < naxes; i++)
-        free(axes->axis[i]);
     ndp_axes_free(axes);
 
     py_indices = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, query_pts->indices);
@@ -843,6 +838,10 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     py_normed_query_pts = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_DOUBLE, query_pts->normed);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_normed_query_pts, NPY_ARRAY_OWNDATA);
+
+    /* free memory that is not passed back to python: */
+    free(query_pts->requested);
+    free(query_pts);
 
     py_combo = PyTuple_New(3);
     PyTuple_SET_ITEM(py_combo, 0, py_indices);
@@ -919,6 +918,15 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
         PyArray_ENABLEFLAGS((PyArrayObject *) py_hypercube, NPY_ARRAY_OWNDATA);
         PyTuple_SetItem(py_hypercubes, i, py_hypercube);
     }
+
+    for (int i = 0; i < nelems; i++)
+        free(hypercubes[i]);
+    /* don't free hypercube data, those go back to python */
+
+    free(hypercubes);
+    ndp_table_free(table);
+    free(qpts->requested);
+    free(qpts);
 
     return py_hypercubes;
 }

@@ -199,7 +199,11 @@ int ndp_axes_free(ndp_axes *axes)
 {
     if (axes->cplen)
         free(axes->cplen);
-    
+
+    for (int i = 0; i < axes->len; i++)
+        free(axes->axis[i]);
+
+    free(axes->axis);
     free(axes);
 
     return NDP_SUCCESS;
