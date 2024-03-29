@@ -9,7 +9,8 @@ ext_modules = [
             'src/ndp_types.c',
         ],
         language='c',
-        extra_compile_args=["-Werror", "-O0", "-g"],
+        extra_compile_args=["-Werror", "-O2"],
+        # extra_compile_args=["-Werror", "-O0", "-g"],
         include_dirs=[numpy.get_include()],
     ),
 ]
