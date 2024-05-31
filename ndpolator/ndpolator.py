@@ -19,7 +19,7 @@ class Ndpolator():
         Parameters
         ----------
         basic_axes : tuple of ndarrays
-            Axes that span the atmosphere grid.
+            Axes that span the ndpolator grid.
         """
         if not isinstance(basic_axes, tuple):
             raise TypeError('parameter `basic_axes` must be a tuple of numpy ndarrays')
@@ -129,7 +129,7 @@ class Ndpolator():
         indices, flags, normed_query_pts = cndpolator.find(axes=axes, query_pts=query_pts, nbasic=len(self.axes))
         return indices, flags, normed_query_pts
 
-    def find_hypercubes(self, table: str, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple = None) -> np.ndarray:
+    def find_hypercubes(self, table: str, normed_query_pts: np.ndarray, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple = None) -> np.ndarray:
         """
         Extracts and populates hypercubes for each query point based on the
         table reference, indices, flags and any associated axes.
@@ -143,6 +143,8 @@ class Ndpolator():
         ----------
         table : str
             reference label to the interpolation grid
+        normed_query_pts :
+            an `(N, M)`-shaped array of normalized query points
         indices : np.ndarray
             an `(N, M)`-shaped array of superior hypercube corners
         flags : np.ndarray
@@ -161,7 +163,7 @@ class Ndpolator():
 
         axes = self.axes if associated_axes is None else self.axes + associated_axes
         grid = self.table[table][1]
-        hypercubes = cndpolator.hypercubes(indices=indices, axes=axes, flags=flags, grid=grid)
+        hypercubes = cndpolator.hypercubes(normed_query_pts=normed_query_pts, indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
     def ndpolate(self, table: str, query_pts: np.ndarray, extrapolation_method: str = 'none') -> np.ndarray:
@@ -185,10 +187,14 @@ class Ndpolator():
 
         Returns
         -------
-        np.ndarray
-            an (N, l(fv))-shaped array of interpolated values, where `N` is
-            the number of query points and `l(fv)` is the length of function
-            values.
+        dict
+            mandatory keys: 'interps'
+            optional keys: 'dists'
+            
+            interps: np.ndarray
+                an (N, l(fv))-shaped array of interpolated values, where `N`
+                is the number of query points and `l(fv)` is the length of
+                function values.
 
         Raises
         ------
@@ -204,7 +210,7 @@ class Ndpolator():
 
         if extrapolation_method not in extrapolation_methods.keys():
             raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of {extrapolation_methods.keys()}.")
-        extrapolation_method = extrapolation_methods.get(extrapolation_method, ExtrapolationMethod.NONE)
+        extrapolation_method = extrapolation_methods[extrapolation_method]
 
         # make sure that the array we're passing to C is contiguous:
         query_pts = np.ascontiguousarray(query_pts)
@@ -213,13 +219,21 @@ class Ndpolator():
         # version, otherwise initialize and cache it for subsequent use:
         capsule = self.table[table][2]
         if capsule:
-            interps = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            interps, dists = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
         else:
             associated_axes = self.table[table][0]
             grid = self.table[table][1]
             axes = self.axes if associated_axes is None else self.axes + associated_axes
 
-            interps, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            interps, dists, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
             self.table[table][2] = capsule
 
-        return interps
+        if extrapolation_method == ExtrapolationMethod.NONE:
+            return {
+                'interps': interps
+            }
+        else:
+            return {
+                'interps': interps,
+                'dists': dists
+            }

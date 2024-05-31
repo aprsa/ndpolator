@@ -32,7 +32,7 @@ enum ndp_vertex_flag {
     NDP_OUT_OF_BOUNDS        /*!< the query point component is off-grid and will need to be extrapolated (see #ndp_extrapolation_method for possible extrapolation methods) */
 };
 
-int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, int *mask);
+int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, double *dist);
 ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes);
 ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table);
 ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method);

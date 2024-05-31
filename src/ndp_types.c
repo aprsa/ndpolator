@@ -357,6 +357,7 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
 {
     int debug = 0;
     int pos;
+    int cpsum = 0;
     int ith_corner[axes->nbasic], cidx[axes->nbasic];
 
     ndp_table *table = ndp_table_new();
@@ -378,8 +379,12 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
             table->vmask[i] = 1;
     }
 
+    /* first cpsum hypercubes cannot be fully defined because they have off-grid vertices: */
+    for (int i = 0; i < axes->nbasic; i++)
+        cpsum += axes->cplen[i];
+
     table->hcmask = calloc(table->nverts, sizeof(*(table->hcmask)));
-    for (int i = 0; i < table->nverts; i++) {
+    for (int i = cpsum; i < table->nverts; i++) {
         int nan_encountered = 0;
 
         /* skip undefined vertices: */
@@ -390,7 +395,7 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
         for (int k = 0; k < axes->nbasic; k++) {
             ith_corner[k] = (i / (axes->cplen[k] / axes->cplen[axes->nbasic-1])) % axes->axis[k]->len;
             if (debug)
-                printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d num=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
+                printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d ith_corner[k]=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
             /* skip edge elements: */
             if (ith_corner[k] == 0) {
                 nan_encountered = 1;
@@ -402,10 +407,10 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
             continue;
 
         if (debug) {
-            printf("i=% 3d c=[", i);
+            printf("corners of hc=[");
             for (int k = 0; k < axes->nbasic; k++)
                 printf("%d ", ith_corner[k]);
-            printf("\b]\n");
+            printf("\b]:\n");
         }
 
         /* loop over all basic hypercube vertices and see if they're all defined: */
@@ -630,6 +635,7 @@ ndp_query *ndp_query_new()
     ndp_query *query = malloc(sizeof(*query));
 
     query->interps = NULL;
+    query->dists = NULL;
 
     return query;
 }
@@ -650,6 +656,8 @@ int ndp_query_free(ndp_query *query)
 {
     if (query->interps)
         free(query->interps);
+    if (query->dists)
+        free(query->dists);
 
     free(query);
 
