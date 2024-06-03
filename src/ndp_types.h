@@ -179,6 +179,7 @@ typedef struct ndp_query {
     int extrapolation_method;    /*!< a #ndp_extrapolation_method */
     ndp_hypercube **hypercubes;  /*!< an array of hypercubes, one per query point */
     double *interps;             /*!< an array of interpolants -- results of interpolation/extrapolation */
+    double *dists;               /*!< an array of distances to the nearest fully defined hypercube */
 } ndp_query;
 
 ndp_query *ndp_query_new();
