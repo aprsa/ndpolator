@@ -276,8 +276,8 @@ def test_specific():
     expected_interps = np.array([fv(query_pt) for query_pt in query_pts])
     ndpolants = ndp.ndpolate('main', query_pts, extrapolation_method='none')
 
-    for x, y in zip(ndpolants['interps'][:,0], expected_interps):
-        print(f'{x=} {y=}')
+    # for x, y in zip(ndpolants['interps'][:,0], expected_interps):
+    #     print(f'{x=} {y=}')
     assert np.allclose(ndpolants['interps'][:,0], expected_interps, rtol=1e-5)
 
     # out_of_bounds = np.argwhere(
