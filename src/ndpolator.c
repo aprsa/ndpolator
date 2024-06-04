@@ -60,27 +60,27 @@ void _ainfo(PyArrayObject *array, int print_data)
     printf("array->nd = %d\n", ndim);
     printf("array->flags = %d\n", PyArray_FLAGS(array));
     printf("array->type = %d\n", PyArray_TYPE(array));
-    printf("array->itemsize = %ld\n", PyArray_ITEMSIZE(array));
+    printf("array->itemsize = %d\n", (int) PyArray_ITEMSIZE(array));
     printf("array->size = %d\n", size);
-    printf("array->nbytes = %ld\n", PyArray_NBYTES(array));
+    printf("array->nbytes = %d\n", (int) PyArray_NBYTES(array));
 
     dims = PyArray_DIMS(array);
     printf("array->dims = [");
     for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", dims[i]);
-    printf("%ld]\n", dims[i]);
+        printf("%d, ", (int) dims[i]);
+    printf("%d]\n", (int) dims[i]);
 
     shape = PyArray_SHAPE(array);
     printf("array->shape = [");
     for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", shape[i]);
-    printf("%ld]\n", shape[i]);
+        printf("%d, ", (int) shape[i]);
+    printf("%d]\n", (int) shape[i]);
 
     strides = PyArray_STRIDES(array);
     printf("array->strides = [");
     for (i = 0; i < ndim - 1; i++)
-        printf("%ld, ", strides[i]);
-    printf("%ld]\n", strides[i]);
+        printf("%d, ", (int) strides[i]);
+    printf("%d]\n", (int) strides[i]);
 
     printf("array->is_c_contiguous: %d\n", PyArray_IS_C_CONTIGUOUS(array));
     printf("array->is_f_contiguous: %d\n", PyArray_IS_F_CONTIGUOUS(array));
