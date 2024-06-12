@@ -379,9 +379,20 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
             table->vmask[i] = 1;
     }
 
-    /* first cpsum hypercubes cannot be fully defined because they have off-grid vertices: */
+    /* cpsum is the number of hypercube vertices on the lower edge */
     for (int i = 0; i < axes->nbasic; i++)
         cpsum += axes->cplen[i];
+    cpsum /= axes->cplen[axes->nbasic-1];
+
+    if (debug) {
+        printf("axlen=[");
+        for (int i = 0; i < axes->len; i++)
+            printf("%d ", axes->axis[i]->len);
+        printf("\b] cplen=[");
+        for (int i = 0; i < axes->len; i++)
+            printf("%d ", axes->cplen[i]);
+        printf("\b] cpsum=%d nverts=%d\n", cpsum, table->nverts);
+    }
 
     table->hcmask = calloc(table->nverts, sizeof(*(table->hcmask)));
     for (int i = cpsum; i < table->nverts; i++) {
@@ -395,7 +406,7 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
         for (int k = 0; k < axes->nbasic; k++) {
             ith_corner[k] = (i / (axes->cplen[k] / axes->cplen[axes->nbasic-1])) % axes->axis[k]->len;
             if (debug)
-                printf("i=%d k=%d cplen[k]=%d cplen[nbasic-1]=%d ith_corner[k]=%d\n", i, k, axes->cplen[k], axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
+                printf("i=%d k=%d normed_cplen[k]=%d ith_corner[k]=%d\n", i, k, axes->cplen[k]/axes->cplen[axes->nbasic-1], i / (axes->cplen[k] / axes->cplen[axes->nbasic-1]));
             /* skip edge elements: */
             if (ith_corner[k] == 0) {
                 nan_encountered = 1;
