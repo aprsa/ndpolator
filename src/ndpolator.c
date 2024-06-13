@@ -35,6 +35,13 @@
 #define max(a,b) (((a)>(b))?(a):(b))
 
 /**
+ * @def sign(a)
+ * Returns the sign of @p a.
+ */
+
+#define sign(a) ( ( (a) < 0 )  ?  -1   : ( (a) > 0 ) )
+
+/**
  * <!-- _ainfo() -->
  * @private
  * @brief Internal function for printing ndarray flags from C.
@@ -145,10 +152,12 @@ void _ainfo(PyArrayObject *array, int print_data)
 
 int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int *flag)
 {
+    int debug = 0;
     int m = l + (r - l) / 2;
 
     while (l != r) {
-        if (x > (1-rtol)*axis->val[m])
+        // if (x > (1-sign(axis->val[m])*rtol)*axis->val[m])
+        if (x + rtol > axis->val[m])
             l = m + 1;
         else
             r = m;
@@ -161,6 +170,9 @@ int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int
     if ( fabs((x - axis->val[l-1])/(axis->val[l] - axis->val[l-1])) < rtol ||
          (l == axis->len - 1 && fabs((x - axis->val[l-1])/(axis->val[l] - axis->val[l-1])-1) < rtol) )
         *flag |= NDP_ON_VERTEX;
+
+    if (debug)
+        printf("l=%d x=%f a[l-1]=%f a[l]=%f rtol=%f flag=%d\n", l, x, axis->val[l-1], axis->val[l], rtol, *flag);
 
     return l;
 }
@@ -751,7 +763,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     double *hc_vertices = malloc(table->vdim * (1 << table->axes->len) * sizeof(*hc_vertices));
 
                     if (debug) {
-                        printf("  normed_elem = [");
+                        printf("  hc %d: normed_elem = [", i);
                         for (int k = 0; k < table->axes->len; k++) {
                             printf("%f ", normed_elem[k]);
                         }
@@ -761,7 +773,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                             printf("%d ", elem_index[k]);
                         }
                         printf("\b]\n");
-                        printf("  coords = [");
+                        printf("  nearest fdhc = [");
                         for (int k = 0; k < table->axes->len; k++) {
                             printf("%d ", coords[k]);
                         }
@@ -790,10 +802,9 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     if (debug)
                         ndp_hypercube_print(hypercube, "    ");
 
-                    /* shift normed query points to account for the new hypercube: */
+                    /* shift normed query points to refer to the nearest fully defined hypercube: */
                     for (int j = 0; j < table->axes->len; j++)
-                        qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j]
-                            + ((NDP_ON_VERTEX & qpts->flags[i * table->axes->len + j]) == NDP_ON_VERTEX && qpts->indices[i * table->axes->len + j] > 0 && qpts->indices[i * table->axes->len + j] < table->axes->axis[j]->len-1);
+                        qpts->normed[i * table->axes->len + j] += qpts->indices[i * table->axes->len + j] - coords[j];
 
                     if (debug) {
                         printf("  updated query_pt[%d] = [", i);
