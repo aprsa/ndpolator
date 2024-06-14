@@ -294,6 +294,18 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
     return NDP_SUCCESS;
 }
 
+int _compare_indexed_dists(const void *a, const void *b)
+{
+    typedef struct {
+        int idx;
+        double dist;
+    } indexed_dists;
+
+    if (((indexed_dists *) a)->dist < ((indexed_dists *) b)->dist) return -1;
+    if (((indexed_dists *) a)->dist > ((indexed_dists *) b)->dist) return 1;
+    return 0;
+}
+
 /**
  * <!-- find_nearest() -->
  * @brief Finds the nearest defined value on the grid.
@@ -359,9 +371,16 @@ int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, double *dist)
 {
     int debug = 0;
-    int min_pos = 0;
-    double cdist, min_dist = 1e50;
+    int min_pos;
+    double cdist;
     int *coords = malloc(table->axes->len * sizeof(*coords));
+
+    typedef struct {
+        int idx;
+        double dist;
+    } indexed_dists;
+    
+    indexed_dists *dists = malloc(table->nverts * sizeof(*dists));
 
     int *mask = extrapolation_method == NDP_METHOD_NEAREST ? table->vmask : table->hcmask;
 
@@ -379,9 +398,13 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
 
     /* loop over all basic vertices: */
     for (int i = 0; i < table->nverts; i++) {
+        dists[i].idx = i;
+
         /* skip if vertex is masked: */
-        if (!mask[i])
+        if (!mask[i]) {
+            dists[i].dist = 1e10;
             continue;
+        }
 
         if (debug) {
             printf("  i=% 4d coord=[", i);
@@ -403,19 +426,23 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
             int coord = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
 
             if (extrapolation_method == NDP_METHOD_NEAREST) {
+                /* FIXME: rewrite this logic in terms of offset_normed_elem. */
+                double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
                 if (normed_elem[j] < 0 || normed_elem[j] > 1)
-                    cdist += (elem_index[j]+normed_elem[j]-1-coord)*(elem_index[j]+normed_elem[j]-1-coord);
+                    cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
                 else
                     cdist += (round(elem_index[j]+normed_elem[j]-1)-coord)*(round(elem_index[j]+normed_elem[j]-1)-coord);
             }
 
             if (extrapolation_method == NDP_METHOD_LINEAR) {
-                if (normed_elem[j] < 0)
-                    cdist += (elem_index[j]-coord+normed_elem[j])*(elem_index[j]-coord+normed_elem[j]);
-                else if (normed_elem[j] > 1)
-                    cdist += (elem_index[j]-coord+normed_elem[j]-1)*(elem_index[j]-coord+normed_elem[j]-1);
-                else
-                    cdist += (elem_index[j]-coord)*(elem_index[j]-coord);
+                double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
+                if (offset_normed_elem < 0)
+                    cdist += offset_normed_elem*offset_normed_elem;
+                else if (offset_normed_elem > 1)
+                    cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
+                else {
+                    /* coordinate is within the hypercube, no cdist change. */
+                }
             }
 
             if (debug)
@@ -425,16 +452,16 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
         if (debug)
             printf("\b\b\b\b\n");
 
-        if (cdist < min_dist) {
-            min_dist = cdist;
-            min_pos = i;
-        }
+        dists[i].dist = cdist;
     }
 
-    *dist = min_dist;
+    /* sort the distances: */
+    qsort(dists, table->nverts, sizeof(*dists), _compare_indexed_dists);
+    *dist = dists[0].dist;
+    min_pos = dists[0].idx;
 
-   if (debug)
-        printf("  min_dist=%f min_pos=%d nearest=[", min_dist, min_pos);
+    if (debug)
+        printf("  min_dist=%f min_pos=%d nearest=[", dists[0].dist, dists[0].idx);
 
     /* Assemble the coordinates: */
     for (int j = 0; j < table->axes->nbasic; j++) {
