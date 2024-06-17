@@ -2,10 +2,8 @@ name: docbuild
 
 on:
     workflow_dispatch:
-    pull_request:
-    push:
-        branches:
-            - 'main'
+    release:
+        types: [created, edited]
 
 permissions:
     contents: read
