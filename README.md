@@ -10,6 +10,28 @@ Fast, n-dimensional linear interpolation and extrapolation on sparse grids.
 
 Ndpolator is a combined interpolator/extrapolator that operates on sparse (incompletely populated) $n$-dimensional grids. It estimates scalar or vector function values within and beyond the definition range of the grid while still avoiding the need to impute missing data or sacrifice the benefits of structured grids. Ndpolator is written in C for speed and portability; a python wrapper that uses numpy arrays is provided for convenience.
 
+# Recent changes
+
+## ndpolator 1.2.1
+
+* the computation of distance between the query point and the grid was not done correctly in off-grid vertices; fixed.
+
+* the find_nearest() function now stores an array of nearest points sorted by distance.
+
+## ndpolator 1.2
+
+* distance between the query point and the grid for off-grid query points is now explicitly computed and returned.
+
+* github workflows substantially improved.
+
+## ndpolator 1.1
+
+* memory management improvements.
+
+## ndpolator 1.0
+
+* initial release.
+
 # Installation
 
 Ndpolator sources are hosted on pypi; you can install the latest release by issuing:
