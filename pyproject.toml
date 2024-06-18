@@ -44,7 +44,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "numpy < 2.0", "pytest"
+    "numpy==1.26.4", "pytest"
 ]
 
 [project.urls]
