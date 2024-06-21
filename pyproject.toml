@@ -44,14 +44,14 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "numpy==1.26.4", "pytest"
+    "numpy<2.0.0", "pytest"
 ]
 
 [project.urls]
 repository = "https://github.com/aprsa/ndpolator"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = ["setuptools", "numpy<2.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
