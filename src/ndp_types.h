@@ -128,6 +128,7 @@ typedef struct ndp_table {
 ndp_table *ndp_table_new();
 ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid);
 ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObject *py_grid);
+void ndp_table_print(ndp_table *table);
 int ndp_table_free(ndp_table *table);
 
 /**

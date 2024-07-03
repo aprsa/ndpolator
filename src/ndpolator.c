@@ -610,6 +610,9 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
 
     ndp_hypercube **hypercubes = malloc(nelems * sizeof(*hypercubes));
 
+    if (debug)
+        ndp_table_print(table);
+
     for (int i = 0; i < nelems; i++) {
         /* assume the hypercube (or the relevant subcube) is fully defined: */
         fdhc = 1;
