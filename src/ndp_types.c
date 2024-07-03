@@ -497,6 +497,22 @@ ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObjec
     return ndp_table_new_from_data(axes, vdim, grid);
 }
 
+void ndp_table_print(ndp_table *table)
+{
+    int undef = 0;
+    printf("ndp_table properties:\n");
+    printf("  vdim = %d\n", table->vdim);
+    printf("  naxes = %d\n", table->axes->len);
+    printf("    axlen = [");
+    for (int i = 0; i < table->axes->len; i++)
+        printf("%d ", table->axes->axis[i]->len);
+    printf("\b]\n");
+    printf("  basic vertices = %d\n", table->nverts);
+    for (int i = 0; i < table->nverts; i++)
+        undef += (1-table->vmask[i]);
+    printf("  undefined vertices = %d\n", undef);
+}
+
 /**
  * @brief #ndp_table destructor.
  * 
