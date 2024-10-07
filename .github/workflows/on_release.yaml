@@ -24,12 +24,14 @@ jobs:
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-                os: [ubuntu-22.04, macos-13, macos-14]
+                os: [ubuntu-24.04, macos-13, macos-14]
         steps:
             - name: Checkout the sources
               uses: actions/checkout@v4
             - name: Build wheels
-              uses: pypa/cibuildwheel@v2.19.1
+              uses: pypa/cibuildwheel@v2.21.2
+              env:
+                CIBW_SKIP: pp37-* pp38-* pp39-* pp31*-macosx*
             - uses: actions/upload-artifact@v4
               with:
                 name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
