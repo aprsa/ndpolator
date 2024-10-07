@@ -2,6 +2,7 @@ name: Upload ndpolator to pypi on release
 
 on:
     workflow_dispatch:
+    pull_request:
     release:
         types: [created]
 
@@ -38,6 +39,7 @@ jobs:
                 path: ./wheelhouse/*.whl
 
     publish-to-pypi:
+        if: github.event_name != 'pull_request'
         needs: [build-sdist, build-wheels]
         name: Publish release to PyPI
         runs-on: ubuntu-latest
