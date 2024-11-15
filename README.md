@@ -74,7 +74,7 @@ To demonstrate the usage of ndpolator, let us consider a 3-dimensional space wit
 A suitable ndpolator instance would be initiated and operated as follows:
 
 ```python
-import numpy
+import numpy as np
 import ndpolator
 
 # initialize the axes:
@@ -89,10 +89,10 @@ ndp = ndpolator.Ndpolator(basic_axes=(a1, a2, a3))
 def fv(pt):
     return pt[0]/1000 + pt[1] + 100*pt[2]
 
-grid = np.empty((len(ax1), len(ax2), len(ax3), 1))
-for i, x in enumerate(ax1):
-        for j, y in enumerate(ax2):
-            for k, z in enumerate(ax3):
+grid = np.empty((len(a1), len(a2), len(a3), 1))
+for i, x in enumerate(a1):
+        for j, y in enumerate(a2):
+            for k, z in enumerate(a3):
                 grid[i, j, k, 0] = fv((x, y, z))
 
 # label the grid ('main') and register it with the ndpolator instance:
@@ -101,14 +101,18 @@ ndp.register(table='main', associated_axes=None, grid=grid)
 # draw query points randomly within and beyond the definition ranges:
 query_pts = np.ascontiguousarray(
     np.vstack((
-        np.random.uniform(500, 5500, 1000),
-        np.random.uniform(0.5, 5.5, 1000),
-        np.random.uniform(0.005, 0.055, 1000))
+        np.random.uniform(500, 5500, 10),
+        np.random.uniform(0.5, 5.5, 10),
+        np.random.uniform(0.005, 0.055, 10))
     ).T
 )
 
 # interpolate and extrapolate linearly:
-interps = ndp.ndpolate(table='main', query_pts, extrapolation_method='nearest')
+interps = ndp.ndpolate(table='main', query_pts=query_pts, extrapolation_method='nearest')
+
+print("query_pts = ", query_pts)
+print("interps = ", interps)
+
 ```
 
 # Purpose
