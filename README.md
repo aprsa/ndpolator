@@ -78,22 +78,22 @@ import numpy as np
 import ndpolator
 
 # initialize the axes:
-a1 = np.linspace(1000, 5000, 5)
-a2 = np.linspace(1, 5, 5)
-a3 = np.linspace(0.01, 0.05, 5)
+a1 = np.linspace(1, 5, 5)
+a2 = np.linspace(10, 50, 5)
+a3 = np.linspace(100, 500, 5)
 
 # initialize interpolation space:
 ndp = ndpolator.Ndpolator(basic_axes=(a1, a2, a3))
 
 # define a scalar function field and evaluate it across the grid:
 def fv(pt):
-    return pt[0]/1000 + pt[1] + 100*pt[2]
+    return pt[0] + pt[1] + pt[2]
 
 grid = np.empty((len(a1), len(a2), len(a3), 1))
 for i, x in enumerate(a1):
-        for j, y in enumerate(a2):
-            for k, z in enumerate(a3):
-                grid[i, j, k, 0] = fv((x, y, z))
+    for j, y in enumerate(a2):
+        for k, z in enumerate(a3):
+            grid[i, j, k, 0] = fv((x, y, z))
 
 # label the grid ('main') and register it with the ndpolator instance:
 ndp.register(table='main', associated_axes=None, grid=grid)
@@ -101,15 +101,18 @@ ndp.register(table='main', associated_axes=None, grid=grid)
 # draw query points randomly within and beyond the definition ranges:
 query_pts = np.ascontiguousarray(
     np.vstack((
-        np.random.uniform(500, 5500, 10),
-        np.random.uniform(0.5, 5.5, 10),
-        np.random.uniform(0.005, 0.055, 10))
+        1.0*np.random.randint(-5, 5, 10),
+        1.0*np.random.randint(-50, 50, 10),
+        1.0*np.random.randint(-500, 500, 10))
     ).T
 )
 
 # interpolate and extrapolate linearly:
 interps = ndp.ndpolate(table='main', query_pts=query_pts, extrapolation_method='nearest')
 
+print("a1 = ", a1)
+print("a2 = ", a2)
+print("a3 = ", a3)
 print("query_pts = ", query_pts)
 print("interps = ", interps)
 
