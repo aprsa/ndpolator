@@ -101,20 +101,20 @@ ndp.register(table='main', associated_axes=None, grid=grid)
 # draw query points randomly within and beyond the definition ranges:
 query_pts = np.ascontiguousarray(
     np.vstack((
-        1.0*np.random.randint(-5, 5, 10),
-        1.0*np.random.randint(-50, 50, 10),
-        1.0*np.random.randint(-500, 500, 10))
+        np.random.uniform(-5, 5, 10),
+        np.random.uniform(-50, 50, 10),
+        np.random.uniform(-500, 500, 10))
     ).T
 )
 
 # interpolate and extrapolate linearly:
 interps = ndp.ndpolate(table='main', query_pts=query_pts, extrapolation_method='nearest')
 
-print("a1 = ", a1)
-print("a2 = ", a2)
-print("a3 = ", a3)
-print("query_pts = ", query_pts)
-print("interps = ", interps)
+print(f'a1 = {a1}')
+print(f'a2 = {a2}')
+print(f'a3 = {a3}')
+print(f'query_pts = {query_pts}')
+print(f'interps = {interps}')
 
 ```
 
