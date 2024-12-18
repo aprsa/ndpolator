@@ -23,12 +23,11 @@ class Ndpolator():
         """
         if not isinstance(basic_axes, tuple):
             raise TypeError('parameter `basic_axes` must be a tuple of numpy ndarrays')
-        for basic_axis in basic_axes:
+        for ti, basic_axis in enumerate(basic_axes):
+            if not isinstance(basic_axis, np.ndarray):
+                raise TypeError(f'the `basic_axes[{ti}]` element must be a numpy ndarray')
             if len(basic_axis) <= 1:
                 raise ValueError('each basic axis must have more than one element')
-        for ti, telem in enumerate(basic_axes):
-            if not isinstance(telem, np.ndarray):
-                raise TypeError(f'the `basic_axes[{ti}]` element must be a numpy ndarray')
 
         self.axes = basic_axes
         self.table = dict()
@@ -82,9 +81,11 @@ class Ndpolator():
         if associated_axes:
             if not isinstance(associated_axes, tuple):
                 raise TypeError('parameter `associated_axes` must be a tuple of numpy ndarrays')
-            for ti, telem in enumerate(associated_axes):
-                if not isinstance(telem, np.ndarray):
+            for ti, associated_axis in enumerate(associated_axes):
+                if not isinstance(associated_axis, np.ndarray):
                     raise TypeError(f'the `associated_axes[{ti}]` element must be a numpy ndarray')
+                if len(associated_axis) <= 1:
+                    raise ValueError('each associated axis must have more than one element')
         if not isinstance(grid, np.ndarray):
             raise TypeError('parameter `grid` must be a numpy ndarray')
 
