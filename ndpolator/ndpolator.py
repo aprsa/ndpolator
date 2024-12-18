@@ -7,7 +7,7 @@ from cndpolator import ExtrapolationMethod
 class Ndpolator():
     """
     This class implements interpolation and extrapolation in n dimensions.
-    It provides a "backbone" to the cndpolator C extension.
+    It provides a "backbone" to the C extension.
     """
 
     def __init__(self, basic_axes: tuple) -> None:
@@ -23,6 +23,9 @@ class Ndpolator():
         """
         if not isinstance(basic_axes, tuple):
             raise TypeError('parameter `basic_axes` must be a tuple of numpy ndarrays')
+        for basic_axis in basic_axes:
+            if len(basic_axis) <= 1:
+                raise ValueError('each basic axis must have more than one element')
         for ti, telem in enumerate(basic_axes):
             if not isinstance(telem, np.ndarray):
                 raise TypeError(f'the `basic_axes[{ti}]` element must be a numpy ndarray')
@@ -98,7 +101,7 @@ class Ndpolator():
         hypercube would be identified by the (5, 4, 2) corner. Thus, for `N`
         query points and `M` basic axes, all three arrays (indices, flags and
         hypercube-normalized query points are `(N, M)`-shaped.
-        
+
         Note: this class method is rarely called directly. The only time it
         would be called is when the calling function identifies query points
         within a certain hypercube and then reuses the indices, flags, and
@@ -138,7 +141,7 @@ class Ndpolator():
         would be called is when the calling function identifies query points
         within a certain hypercube and then reuses the indices, flags, and
         hypercube-normalized query points.
-        
+
         Parameters
         ----------
         table : str
@@ -190,7 +193,7 @@ class Ndpolator():
         dict
             mandatory keys: 'interps'
             optional keys: 'dists'
-            
+
             interps: np.ndarray
                 an (N, l(fv))-shaped array of interpolated values, where `N`
                 is the number of query points and `l(fv)` is the length of
