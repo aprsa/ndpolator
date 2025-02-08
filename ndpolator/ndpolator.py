@@ -50,7 +50,7 @@ class Ndpolator():
         """
         return list(self.table.keys())
 
-    def register(self, table: str, associated_axes: tuple, grid: np.ndarray) -> None:
+    def register(self, name: str, associated_axes: tuple, grid: np.ndarray) -> None:
         """
         Registers an interpolation grid, along with any associated tables,
         with the ndpolator instance. It is referenced by the provided table
@@ -61,7 +61,7 @@ class Ndpolator():
 
         Parameters
         ----------
-        table : str
+        name : str
             reference label to the interpolation grid
         associated_axes : tuple or None
             any additional non-basic axes in the interpolation grid
@@ -76,8 +76,9 @@ class Ndpolator():
         TypeError
             if any of passed parameters have an incorrect type.
         """
-        if not isinstance(table, str):
-            raise TypeError('parameter `table` must be a string')
+
+        if not isinstance(name, str):
+            raise TypeError('parameter `name` must be a string')
         if associated_axes:
             if not isinstance(associated_axes, tuple):
                 raise TypeError('parameter `associated_axes` must be a tuple of numpy ndarrays')
@@ -89,9 +90,13 @@ class Ndpolator():
         if not isinstance(grid, np.ndarray):
             raise TypeError('parameter `grid` must be a numpy ndarray')
 
-        self.table[table] = [associated_axes, np.ascontiguousarray(grid), None]
+        self.table[name] = {
+            'associated_axes': associated_axes,
+            'grid': grid,
+            'capsule': None
+        }
 
-    def import_query_pts(self, table: str, query_pts: np.ndarray) -> tuple:
+    def import_query_pts(self, name: str, query_pts: np.ndarray) -> tuple:
         """
         Imports and processes query points (points of interest). This entails
         finding the enclosing (or adjacent, if at the boundary of the grid)
@@ -110,7 +115,7 @@ class Ndpolator():
 
         Parameters
         ----------
-        table : str
+        name : str
             reference label to the interpolation grid
         query_pts : np.ndarray
             a numpy ndarray of query points; the expected shape is `(N, M)`,
@@ -128,12 +133,12 @@ class Ndpolator():
         # make sure that the array we're passing to C is contiguous:
         query_pts = np.ascontiguousarray(query_pts)
 
-        associated_axes = self.table[table][0]
+        associated_axes = self.table[name]['associated_axes']
         axes = self.axes if associated_axes is None else self.axes + associated_axes
         indices, flags, normed_query_pts = cndpolator.find(axes=axes, query_pts=query_pts, nbasic=len(self.axes))
         return indices, flags, normed_query_pts
 
-    def find_hypercubes(self, table: str, normed_query_pts: np.ndarray, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple = None) -> np.ndarray:
+    def find_hypercubes(self, name: str, normed_query_pts: np.ndarray, indices: np.ndarray, flags: np.ndarray, associated_axes: tuple = None) -> np.ndarray:
         """
         Extracts and populates hypercubes for each query point based on the
         table reference, indices, flags and any associated axes.
@@ -145,7 +150,7 @@ class Ndpolator():
 
         Parameters
         ----------
-        table : str
+        name : str
             reference label to the interpolation grid
         normed_query_pts :
             an `(N, M)`-shaped array of normalized query points
@@ -166,11 +171,11 @@ class Ndpolator():
         """
 
         axes = self.axes if associated_axes is None else self.axes + associated_axes
-        grid = self.table[table][1]
+        grid = self.table[name]['grid']
         hypercubes = cndpolator.hypercubes(normed_query_pts=normed_query_pts, indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
-    def ndpolate(self, table: str, query_pts: np.ndarray, extrapolation_method: str = 'none') -> np.ndarray:
+    def ndpolate(self, name: str, query_pts: np.ndarray, extrapolation_method: str = 'none') -> np.ndarray:
         """
         Performs n-dimensional interpolation or extrapolation. This is the
         main "workhorse" of the class and should be considered the default
@@ -179,7 +184,7 @@ class Ndpolator():
 
         Parameters
         ----------
-        table : str
+        name : str
             reference label to the interpolation grid
         query_pts : np.ndarray
             a numpy ndarray of query points; the expected shape is `(N, M)`,
@@ -221,16 +226,16 @@ class Ndpolator():
 
         # if cndpolator structures have been used before, use the cached
         # version, otherwise initialize and cache it for subsequent use:
-        capsule = self.table[table][2]
+        capsule = self.table[name]['capsule']
         if capsule:
             interps, dists = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
         else:
-            associated_axes = self.table[table][0]
-            grid = self.table[table][1]
+            associated_axes = self.table[name]['associated_axes']
+            grid = self.table[name]['grid']
             axes = self.axes if associated_axes is None else self.axes + associated_axes
 
             interps, dists, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
-            self.table[table][2] = capsule
+            self.table[name]['capsule'] = capsule
 
         if extrapolation_method == ExtrapolationMethod.NONE:
             return {
