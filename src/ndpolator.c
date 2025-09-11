@@ -303,7 +303,8 @@ int _compare_indexed_dists(const void *a, const void *b)
 
     if (((indexed_dists *) a)->dist < ((indexed_dists *) b)->dist) return -1;
     if (((indexed_dists *) a)->dist > ((indexed_dists *) b)->dist) return 1;
-    return 0;
+    /* for equal distances select the upper index for consistency: */
+    return (((indexed_dists *) a)->idx > ((indexed_dists *) b)->idx) ? 1 : -1;
 }
 
 /**
