@@ -234,7 +234,13 @@ class Ndpolator():
             grid = self.table[name]['grid']
             axes = self.axes if associated_axes is None else self.axes + associated_axes
 
-            interps, dists, capsule = cndpolator.ndpolate(query_pts=query_pts, axes=axes, grid=grid, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            interps, dists, capsule = cndpolator.ndpolate(
+                query_pts=query_pts,
+                axes=axes,
+                grid=grid,
+                nbasic=len(self.axes),
+                extrapolation_method=extrapolation_method
+            )
             self.table[name]['capsule'] = capsule
 
         if extrapolation_method == ExtrapolationMethod.NONE:
