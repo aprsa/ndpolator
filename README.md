@@ -12,6 +12,16 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 # Recent changes
 
+## ndpolator 1.2.3
+
+* extrapolating with extrapolation_mode='nearest' when two or more points were at the exact same distance (within machine precision) did not consistently select the same point on all architectures, causing potential inconsistencies across different machines.
+
+## ndpolator 1.2.2
+
+* docbuild moved from PR actions to release action.
+
+* an incorrect argument name in unit tests fixed.
+
 ## ndpolator 1.2.1
 
 * the computation of distance between the query point and the grid was not done correctly in off-grid vertices; fixed.
