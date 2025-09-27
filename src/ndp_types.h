@@ -12,6 +12,9 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
+/* Include k-d tree library */
+#include "kdtree.h"
+
 /**
  * @enum ndp_status All ndpolator functions that do not allocate memory should
  * return #ndp_status. If no exceptions occurred, #NDP_SUCCESS should be
@@ -112,17 +115,20 @@ int ndp_query_pts_free(ndp_query_pts *qpts);
  * Ndpolator uses #ndp_table to store all relevant parameters for
  * interpolation and/or extrapolation. It stores the axes that span the
  * interpolation hyperspace (in a #ndp_axes structure), the function values
- * across the interpolation hyperspace (@p grid), function value length (@p
- * vdim), and several private fields that further optimize interpolation.
+ * across the interpolation hyperspace (@p grid and @p kdtree), function value
+ * length (@p vdim), and several private fields that further optimize
+ * interpolation.
  */
 
 typedef struct ndp_table {
-    int vdim;        /*!< function value length (1 for scalars, >1 for arrays) */
-    ndp_axes *axes;  /*!< an #ndp_axes instance that defines all axes */
-    double *grid;    /*!< an array that holds all function values, in C-native order */
-    int nverts;      /*!< @private number of basic grid points */
-    int *vmask;      /*!< @private nverts-length mask of nodes (defined grid points) */
-    int *hcmask;     /*!< @private nverts-length mask of fully defined hypercubes */
+    int vdim;               /*!< function value length (1 for scalars, >1 for arrays) */
+    ndp_axes *axes;         /*!< an #ndp_axes instance that defines all axes */
+    double *grid;           /*!< an array that holds all function values, in C-native order */
+    struct kdtree *vtree;   /*!< vertex k-d tree spatial index for fast nearest neighbor search */
+    struct kdtree *hctree;  /*!< hypercube k-d tree spatial index for fast nearest neighbor search */
+    int nverts;             /*!< @private number of basic grid points */
+    int *vmask;             /*!< @private nverts-length mask of nodes (defined grid points) */
+    int *hcmask;            /*!< @private nverts-length mask of fully defined hypercubes */
 } ndp_table;
 
 ndp_table *ndp_table_new();
