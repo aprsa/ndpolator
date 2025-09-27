@@ -5,13 +5,17 @@ ext_modules = [
     Extension(
         'cndpolator',
         sources=[
+            # ndpolator sources:
             'src/ndpolator.c',
             'src/ndp_types.c',
+            # vendored kdtree source:
+            'external/kdtree/kdtree.c',
         ],
         language='c',
-        extra_compile_args=["-Werror", "-O2"],
+        extra_link_args=['-lm', '-pthread'],
+        extra_compile_args=["-Werror", "-O3"],
         # extra_compile_args=["-Werror", "-O0", "-g"],
-        include_dirs=[numpy.get_include()],
+        include_dirs=['src', 'external/kdtree', numpy.get_include()],
     ),
 ]
 

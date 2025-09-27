@@ -24,6 +24,7 @@
 #define PY_ARRAY_UNIQUE_SYMBOL cndpolator_ARRAY_API
 
 #include "ndp_types.h"
+#include "kdtree.h"
 
 /**
  * @brief #ndp_axis constructor.
@@ -307,9 +308,10 @@ int ndp_query_pts_free(ndp_query_pts *qpts)
  *
  * @details
  * Initializes a new #ndp_table instance. It sets @p vdim, @p ndefs and @p
- * hcdefs to 0, and it NULLifies all arrays.
+ * hcdefs to 0, and it NULLifies all arrays. Spatial index pointer is also
+ * NULLified and the @p si_built flag is set to 0.
  *
- * @return An initialized #ndp_axes instance.
+ * @return An initialized #ndp_table instance.
  */
 
 ndp_table *ndp_table_new()
@@ -318,6 +320,9 @@ ndp_table *ndp_table_new()
     table->vdim = 0;
     table->axes = NULL;
     table->grid = NULL;
+
+    table->vtree = NULL;
+    table->hctree = NULL;
 
     table->nverts = 0;
     table->vmask = NULL;
@@ -350,6 +355,9 @@ ndp_table *ndp_table_new()
  * in @p hcdefs, while their list is stored in the @p defined_hypercubes
  * array.
  *
+ * Note that the constructor does not build the spatial index tree. That is
+ * done on-demand (i.e. "lazy" initialization) when the first query is made.
+ * 
  * @return An initialized #ndp_table instance.
  */
 
@@ -479,7 +487,10 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
  * len(py_axes)), and the passed @p py_grid parameter must be a numpy array of
  * the shape (n1, n2, ..., nk, ..., nN, vdim), where nk is the length of the
  * k-th axis.
- *
+ * 
+ * Note that the constructor does not build the spatial index tree. That is
+ * done on-demand (i.e. "lazy" initialization) when the first query is made.
+ * 
  * @return An initialized #ndp_table instance.
  */
 
@@ -532,6 +543,12 @@ int ndp_table_free(ndp_table *table)
 
     if (table->grid)
         free(table->grid);
+
+    if (table->vtree)
+        kd_free(table->vtree);
+
+    if (table->hctree)
+        kd_free(table->hctree);
 
     if (table->vmask)
         free(table->vmask);

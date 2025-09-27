@@ -11,11 +11,11 @@
 
 [project]
 name = "ndpolator"
-version = "1.2.3"
+version = "1.3.0"
 description = "ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids"
 readme = "README.md"
 requires-python = ">=3.7"
-license = { text = "GPL-3.0-or-later" }
+license = "GPL-3.0-or-later"
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
 ]
@@ -33,7 +33,6 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: C",

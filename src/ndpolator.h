@@ -21,6 +21,19 @@ typedef enum {
 } ndp_extrapolation_method;
 
 /**
+ * @brief ndp_search_algorithm
+ * 
+ * Determines which algorithm to use for nearest neighbor searches.
+ * The default is to use a k-d tree spatial index, but for small
+ * datasets a linear search may be faster.
+ */
+
+ typedef enum {
+    NDP_SEARCH_KDTREE = 0,   /*!< use a k-d tree spatial index for nearest neighbor searches */
+    NDP_SEARCH_LINEAR        /*!< use linear search for nearest neighbor searches */
+} ndp_search_algorithm;
+
+/**
  * @enum ndp_vertex_flag
  * Flags each component of the query point whether it is within the axis span,
  * on one of the axis vertices, or if it is out-of-bounds.
@@ -32,9 +45,9 @@ enum ndp_vertex_flag {
     NDP_OUT_OF_BOUNDS        /*!< the query point component is off-grid and will need to be extrapolated (see #ndp_extrapolation_method for possible extrapolation methods) */
 };
 
-int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, double *dist);
+int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist);
 ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes);
 ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table);
-ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method);
+ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm);
 
 #endif

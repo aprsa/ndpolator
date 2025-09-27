@@ -1,7 +1,7 @@
 import numpy as np
 import cndpolator
 
-from cndpolator import ExtrapolationMethod
+from cndpolator import ExtrapolationMethod, SearchAlgorithm
 
 
 class Ndpolator():
@@ -175,7 +175,7 @@ class Ndpolator():
         hypercubes = cndpolator.hypercubes(normed_query_pts=normed_query_pts, indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
-    def ndpolate(self, name: str, query_pts: np.ndarray, extrapolation_method: str = 'none') -> np.ndarray:
+    def ndpolate(self, name: str, query_pts: np.ndarray, extrapolation_method: str = 'none', search_algorithm: str = 'kdtree') -> np.ndarray:
         """
         Performs n-dimensional interpolation or extrapolation. This is the
         main "workhorse" of the class and should be considered the default
@@ -193,6 +193,8 @@ class Ndpolator():
         extrapolation_method : str, optional
             extrapolation method, one of 'none', 'nearest', 'linear'; by
             default 'none'
+        search_algorithm : str, optional
+            search algorithm, one of 'kdtree', 'linear'; by default 'kdtree'
 
         Returns
         -------
@@ -208,8 +210,10 @@ class Ndpolator():
         Raises
         ------
         ValueError
-            raised when the passed extrapolation method is not one of 'none',
+            * raised when the passed extrapolation method is not one of 'none',
             'nearest', 'linear'.
+            * raised when the passed search algorithm is not one of 'kdtree',
+            'linear'.
         """
         extrapolation_methods = {
             'none': ExtrapolationMethod.NONE,
@@ -217,9 +221,18 @@ class Ndpolator():
             'linear': ExtrapolationMethod.LINEAR
         }
 
+        search_algorithms = {
+            'kdtree': SearchAlgorithm.KDTREE,
+            'linear': SearchAlgorithm.LINEAR
+        }
+
         if extrapolation_method not in extrapolation_methods.keys():
             raise ValueError(f"extrapolation_method={extrapolation_method} is not valid; it must be one of {extrapolation_methods.keys()}.")
         extrapolation_method = extrapolation_methods[extrapolation_method]
+
+        if search_algorithm not in search_algorithms.keys():
+            raise ValueError(f"search_algorithm={search_algorithm} is not valid; it must be one of {search_algorithms.keys()}.")
+        search_algorithm = search_algorithms[search_algorithm]
 
         # make sure that the array we're passing to C is contiguous:
         query_pts = np.ascontiguousarray(query_pts)
@@ -228,7 +241,7 @@ class Ndpolator():
         # version, otherwise initialize and cache it for subsequent use:
         capsule = self.table[name]['capsule']
         if capsule:
-            interps, dists = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method)
+            interps, dists = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method, search_algorithm=search_algorithm)
         else:
             associated_axes = self.table[name]['associated_axes']
             grid = self.table[name]['grid']
@@ -239,7 +252,8 @@ class Ndpolator():
                 axes=axes,
                 grid=grid,
                 nbasic=len(self.axes),
-                extrapolation_method=extrapolation_method
+                extrapolation_method=extrapolation_method,
+                search_algorithm=search_algorithm
             )
             self.table[name]['capsule'] = capsule
 

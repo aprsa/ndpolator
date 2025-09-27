@@ -318,6 +318,8 @@ int _compare_indexed_dists(const void *a, const void *b)
  * @param extrapolation_method a #ndp_extrapolation_method that determines
  * whether to find the nearest defined vertex or the nearest fully defined
  * hypercube.
+ * @param search_algorithm a #ndp_search_algorithm that determines whether to
+ * use kdtree's spatial index or linear search
  * @param dist placeholder for distance between @p normed_elem and the nearest
  * fully defined hypercube
  *
@@ -360,6 +362,13 @@ int _compare_indexed_dists(const void *a, const void *b)
  * otherwise it is set to 0. These arrays have @p table->nverts elements,
  * which equals to the product of the lengths of all basic axes.
  *
+ * @param search_algorithm a #ndp_search_algorithm that determines whether to
+ * use kdtree or linear search. Building a kdtree spatial index is an upfront
+ * cost, but it speeds up searches significantly for large tables. Its time
+ * complexity scales as O(logN), where N is the number of defined vertices.
+ * For smaller tables, a linear search might be faster because there is no
+ * upfront cost, but its time complexity scales as O(N).
+ *
  * The function computes Euclidean square distances for each masked grid point
  * from the requested element and returns the pointer to the nearest function
  * value. The search is optimized by searching over basic axes first. The
@@ -369,7 +378,7 @@ int _compare_indexed_dists(const void *a, const void *b)
  * must free the memory once done.
  */
 
-int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, double *dist)
+int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist)
 {
     int debug = 0;
     int min_pos;
@@ -385,6 +394,27 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
 
     int *mask = extrapolation_method == NDP_METHOD_NEAREST ? table->vmask : table->hcmask;
 
+    if (search_algorithm == NDP_SEARCH_KDTREE) {
+        /* if this is the first call to find_nearest and k-d trees are used, lazy-load the corresponding spatial index */
+        struct kdtree **tree_ptr = extrapolation_method == NDP_METHOD_NEAREST ? &table->vtree : &table->hctree;
+        if (!*tree_ptr) {
+            *tree_ptr = kd_create(table->axes->nbasic);
+            for (int i = 0; i < table->nverts; i++)
+                if (mask[i]) {
+                    double *coords = malloc(table->axes->nbasic * sizeof(double));
+
+                    for (int j = 0; j < table->axes->nbasic; j++) {
+                        coords[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+                        // For hypercube tree: subtract 0.5 from superior corner to get hypercube center
+                        if (extrapolation_method == NDP_METHOD_LINEAR)
+                            coords[j] -= 0.5;
+                    }
+
+                    kd_insert(*tree_ptr, coords, (void *)(uintptr_t) i);
+                }
+        }
+    }
+
     if (debug) {
         printf("normed_elem=[");
         for (int j = 0; j < table->axes->nbasic; j++) {
@@ -397,6 +427,79 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
         printf("\b]\n");
     }
 
+    if (search_algorithm == NDP_SEARCH_KDTREE) {
+        struct kdtree *tree = extrapolation_method == NDP_METHOD_NEAREST ? table->vtree : table->hctree;
+
+        /* Convert query point to k-d tree coordinate space */
+        double *query_coords = malloc(table->axes->nbasic * sizeof(double));
+        
+        for (int j = 0; j < table->axes->nbasic; j++) {
+            if (extrapolation_method == NDP_METHOD_NEAREST) {
+                query_coords[j] = (elem_index[j] - 1) + normed_elem[j];
+            } else {
+                /* For hypercube trees use hypercube center coordinates */
+                query_coords[j] = elem_index[j] + normed_elem[j] - 0.5;
+            }
+        }
+
+        /* Query the k-d tree */
+        struct kdres *result = kd_nearest(tree, query_coords);
+        if (result && kd_res_size(result) > 0) {
+            /* Extract the vertex index from the result */
+            int vertex_idx = (int)(uintptr_t) kd_res_item_data(result);
+
+            /* Calculate distance for consistency with linear search */
+            cdist = 0.0;
+            for (int j = 0; j < table->axes->nbasic; j++) {
+                int coord = vertex_idx / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+                
+                if (extrapolation_method == NDP_METHOD_NEAREST) {
+                    double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
+                    if (normed_elem[j] < 0 || normed_elem[j] > 1)
+                        cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
+                    else
+                        cdist += (round(elem_index[j]+normed_elem[j]-1)-coord)*(round(elem_index[j]+normed_elem[j]-1)-coord);
+                }
+                
+                if (extrapolation_method == NDP_METHOD_LINEAR) {
+                    /* For linear method, use the original normalized coordinate directly */
+                    double offset_normed_elem = normed_elem[j];
+                    if (offset_normed_elem < 0)
+                        cdist += offset_normed_elem*offset_normed_elem;
+                    else if (offset_normed_elem > 1)
+                        cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
+                }
+            }
+            
+            *dist = cdist;
+            kd_res_free(result);
+            free(query_coords);
+            free(dists);
+            
+            /* Convert vertex index back to coordinates */
+            int *coords = malloc(table->axes->nbasic * sizeof(int));
+            if (!coords) return NULL;
+            
+            for (int j = 0; j < table->axes->nbasic; j++) {
+                coords[j] = vertex_idx / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+            }
+            
+            if (debug) {
+                printf("k-d tree found vertex %d at coords [", vertex_idx);
+                for (int j = 0; j < table->axes->nbasic; j++) {
+                    printf("%d ", coords[j]);
+                }
+                printf("\b] with distance %f\n", cdist);
+            }
+            
+            return coords;
+        }
+        
+        kd_res_free(result);
+        free(query_coords);
+    }
+
+    /* Fallback to linear search */
     /* loop over all basic vertices: */
     for (int i = 0; i < table->nverts; i++) {
         dists[i].idx = i;
@@ -698,6 +801,8 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
  * the interpolating grid itself
  * @param extrapolation_method how extrapolation should be done; one of
  * #NDP_METHOD_NONE, #NDP_METHOD_NEAREST, or #NDP_METHOD_LINEAR.
+ * @param search_algorithm a #ndp_search_algorithm that determines whether to
+ * use kdtree's spatial index or linear search.
  *
  * @details
  * This is the main workhorse on the ndpolator module. It assumes that the
@@ -725,7 +830,7 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
  * ndpolator run.
  */
 
-ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method)
+ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm)
 {
     int debug = 0;
 
@@ -775,7 +880,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     int *elem_flag = qpts->flags + i * table->axes->len;
                     int pos;
 
-                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, &(query->dists[i]));
+                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
                     idx2pos(table->axes, table->vdim, coords, &pos);
                     memcpy(query->interps + i*table->vdim, table->grid + pos, table->vdim * sizeof(*(query->interps)));
                     free(coords);
@@ -790,7 +895,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     int pos;
 
                     /* superior corner coordinates of the nearest fully defined hypercube: */
-                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, &(query->dists[i]));
+                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
                     double *hc_vertices = malloc(table->vdim * (1 << table->axes->len) * sizeof(*hc_vertices));
 
                     if (debug) {
@@ -1109,10 +1214,11 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     PyArrayObject *py_grid = NULL;
     int nbasic = 0;
     ndp_extrapolation_method extrapolation_method = NDP_METHOD_NONE;
+    ndp_search_algorithm search_algorithm = NDP_SEARCH_KDTREE;
 
-    static char *kwlist[] = {"capsule", "query_pts", "axes", "grid", "nbasic", "extrapolation_method", NULL};
+    static char *kwlist[] = {"capsule", "query_pts", "axes", "grid", "nbasic", "extrapolation_method", "search_algorithm", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOii", kwlist, &py_capsule, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOiii", kwlist, &py_capsule, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method, &search_algorithm))
         return NULL;
 
     if (PyCapsule_IsValid(py_capsule, NULL)) {
@@ -1131,7 +1237,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     double *qpts = PyArray_DATA(py_query_pts);
 
     ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
-    ndp_query *query = ndpolate(query_pts, table, extrapolation_method);
+    ndp_query *query = ndpolate(query_pts, table, extrapolation_method, search_algorithm);
 
     npy_intp adim[] = {nelems, table->vdim};
     PyObject *py_interps = PyArray_SimpleNewFromData(2, adim, NPY_DOUBLE, query->interps);
@@ -1201,12 +1307,18 @@ void _register_enum(PyObject *self, const char *enum_name, PyObject *py_enum)
 
 int ndp_register_enums(PyObject *self)
 {
-    PyObject* py_enum = PyDict_New();
+    PyObject *py_enum;
 
+    py_enum = PyDict_New();
     PyDict_SetItemString(py_enum, "NONE", PyLong_FromLong(NDP_METHOD_NONE));
     PyDict_SetItemString(py_enum, "NEAREST", PyLong_FromLong(NDP_METHOD_NEAREST));
     PyDict_SetItemString(py_enum, "LINEAR", PyLong_FromLong(NDP_METHOD_LINEAR));
     _register_enum(self, "ExtrapolationMethod", py_enum);
+
+    py_enum = PyDict_New();
+    PyDict_SetItemString(py_enum, "LINEAR", PyLong_FromLong(NDP_SEARCH_LINEAR));
+    PyDict_SetItemString(py_enum, "KDTREE", PyLong_FromLong(NDP_SEARCH_KDTREE));
+    _register_enum(self, "SearchAlgorithm", py_enum);
 
     return NDP_SUCCESS;
 }
