@@ -1,6 +1,49 @@
 ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids
 =====================================================================================
 
+Quick Start Guide
+-----------------
+
+**New to ndpolator?** Here's where to start:
+
+1. **Python Users**: 
+   - \ref ndpolator::ndpolator::Ndpolator "Python Ndpolator class" - Full API reference
+   - \ref python_tutorial "Python API Tutorial" - Complete step-by-step guide with examples
+2. **C API Users**:
+   - Start with \ref main_api "Main C API" for core functions
+3. **Understanding the Data**: See \ref data_structures "Data Structures" for key types
+4. **Configuration**: Explore \ref config "Configuration and Setup" for options
+
+### Python API Quick Reference
+
+The Python interface provides a convenient high-level API:
+- **Main Class**: \ref ndpolator::ndpolator::Ndpolator "Ndpolator" - The primary Python class for n-dimensional interpolation
+- **Key Methods**:
+  - \ref ndpolator::ndpolator::Ndpolator::__init__ "Ndpolator()" - Initialize with basic axes
+  - \ref ndpolator::ndpolator::Ndpolator::register "register()" - Register interpolation grids
+  - \ref ndpolator::ndpolator::Ndpolator::ndpolate "ndpolate()" - Perform interpolation/extrapolation
+
+**Quick Example:**
+```python
+import numpy as np
+from ndpolator import Ndpolator
+
+# Create basic axes
+x = np.array([1.0, 2.0, 3.0])
+y = np.array([4.0, 5.0, 6.0])
+
+# Initialize ndpolator
+interp = Ndpolator((x, y))
+
+# Register a 2D grid of function values
+grid = np.random.rand(3, 3, 1)  # 3x3 grid with scalar values
+interp.register('data', None, grid)
+
+# Interpolate at query points
+query_pts = np.array([[1.5, 4.5], [2.5, 5.5]])
+result = interp.ndpolate('data', query_pts)
+```
+
 Introduction
 ------------
 
