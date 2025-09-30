@@ -3,11 +3,10 @@
 
 set -e  # Exit on any error
 
-# Get the script directory (docs/) and project root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Get the script directory (project root)  
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Change to project root for doxygen
+# Change to project root (we're already there, but be explicit)
 cd "$PROJECT_ROOT"
 
 echo "Building ndpolator documentation..."

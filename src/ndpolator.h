@@ -157,8 +157,7 @@ ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes);
 
 ndp_hypercube **ndp_find_hypercubes(ndp_query_pts *qpts, ndp_table *table);
 
-/** @ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table,
-  * ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm)
+/** @fn ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm)
   * @ingroup main_api
   * @brief Performs n-dimensional interpolation and extrapolation.
   *

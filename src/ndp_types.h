@@ -515,7 +515,7 @@ ndp_hypercube *ndp_hypercube_new_from_data(int dim, int vdim, int fdhc, double *
 
 int ndp_hypercube_alloc(ndp_hypercube *hc, int dim, int vdim);
 
-/** @fn int ndp_hypercube_print(ndp_hypercube *hc, const char *prefix)
+/** @fn void ndp_hypercube_print(ndp_hypercube *hc, const char *prefix)
   * @ingroup convenience
   * @brief Prints ndp_hypercube information for debugging.
   *
@@ -526,8 +526,6 @@ int ndp_hypercube_alloc(ndp_hypercube *hc, int dim, int vdim);
   * Prints basic information about the ndp_hypercube instance, including
   * dimension, vertex dimension (function value length), whether the hypercube
   * is fully defined, and all vertex function values.
-  *
-  * @return ndp_status code
   */
 
 void ndp_hypercube_print(ndp_hypercube *hc, const char *prefix);
