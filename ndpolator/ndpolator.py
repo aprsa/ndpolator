@@ -7,25 +7,36 @@ from cndpolator import ExtrapolationMethod, SearchAlgorithm
 class Ndpolator():
     """
     This class implements interpolation and extrapolation in n dimensions.
-    It provides a "backbone" to the C extension.
+
+    Ndpolator wraps around the C extension and provides a user-friendly
+    interface from python.
+
+    Attributes
+    ----------
+        * axes : tuple[ndarray]
+            Basic axes that span the ndpolator grid.
+        * table : dict
+            Dictionary holding registered interpolation grids and their metadata.
+            Each entry contains associated axes, grid data, and cached C extension capsule.
     """
 
     def __init__(self, basic_axes: tuple) -> None:
         """
-        Instantiates an Nndpolator class. The class relies on `basic_axes` to
-        span the interpolation hypercubes. Only basic (spanning) axes should
-        be passed here.
+        Instantiates an Ndpolator class.
+
+        The class relies on `basic_axes` to span the interpolation hypercubes.
+        Only basic (spanning) axes should be passed here.
 
         Parameters
         ----------
-        basic_axes : tuple of ndarrays
+        * basic_axes : tuple of float ndarrays
             Axes that span the ndpolator grid.
         """
         if not isinstance(basic_axes, tuple):
-            raise TypeError('parameter `basic_axes` must be a tuple of numpy ndarrays')
+            raise TypeError('parameter `basic_axes` must be a tuple of ndarrays')
         for ti, basic_axis in enumerate(basic_axes):
             if not isinstance(basic_axis, np.ndarray):
-                raise TypeError(f'the `basic_axes[{ti}]` element must be a numpy ndarray')
+                raise TypeError(f'the `basic_axes[{ti}]` element must be a ndarray')
             if len(basic_axis) <= 1:
                 raise ValueError('each basic axis must have more than one element')
 
@@ -45,7 +56,7 @@ class Ndpolator():
 
         Returns
         -------
-        list of strings
+        list[str]
             table names (references) attached to the ndpolator
         """
         return list(self.table.keys())
@@ -61,15 +72,15 @@ class Ndpolator():
 
         Parameters
         ----------
-        name : str
+        * name : str
             reference label to the interpolation grid
-        associated_axes : tuple or None
+        * associated_axes : tuple or None
             any additional non-basic axes in the interpolation grid
-        grid : np.ndarray
+        * grid : ndarray
             interpolation grid; grid shape should be `(l(b1), ..., l(bn),
-            l(a1), ..., l(bm), l(fv))`, where `bk` are basic axes, `ak` are
-            associated axes, `fv` is the function value, and `l()` is the
-            length operator.
+            l(a1), ..., l(am), l(fv))`, where `bk` are basic axes, `ak`
+            are associated axes and `fv` is the function value; `l(x)` is the
+            length of axis `x`.
 
         Raises
         ------
@@ -81,14 +92,14 @@ class Ndpolator():
             raise TypeError('parameter `name` must be a string')
         if associated_axes:
             if not isinstance(associated_axes, tuple):
-                raise TypeError('parameter `associated_axes` must be a tuple of numpy ndarrays')
+                raise TypeError('parameter `associated_axes` must be a tuple of ndarrays')
             for ti, associated_axis in enumerate(associated_axes):
                 if not isinstance(associated_axis, np.ndarray):
-                    raise TypeError(f'the `associated_axes[{ti}]` element must be a numpy ndarray')
+                    raise TypeError(f'the `associated_axes[{ti}]` element must be a ndarray')
                 if len(associated_axis) <= 1:
                     raise ValueError('each associated axis must have more than one element')
         if not isinstance(grid, np.ndarray):
-            raise TypeError('parameter `grid` must be a numpy ndarray')
+            raise TypeError('parameter `grid` must be a ndarray')
 
         self.table[name] = {
             'associated_axes': associated_axes,
@@ -115,16 +126,16 @@ class Ndpolator():
 
         Parameters
         ----------
-        name : str
+        * name : str
             reference label to the interpolation grid
-        query_pts : np.ndarray
-            a numpy ndarray of query points; the expected shape is `(N, M)`,
+        * query_pts : ndarray
+            an ndarray of query points; the expected shape is `(N, M)`,
             where `N` is the number of query points and `M` is the number of
             basic axes.
 
         Returns
         -------
-        tuple[np.ndarray]
+        tuple[ndarray]
             A tuple with three elements: an ndarray of containing hypercube
             indices, an ndarray of per-component flags, and an ndarray of
             hypercube-normalized query points.
@@ -150,20 +161,20 @@ class Ndpolator():
 
         Parameters
         ----------
-        name : str
+        * name : str
             reference label to the interpolation grid
-        normed_query_pts :
+        * normed_query_pts : ndarray
             an `(N, M)`-shaped array of normalized query points
-        indices : np.ndarray
+        * indices : ndarray
             an `(N, M)`-shaped array of superior hypercube corners
-        flags : np.ndarray
+        * flags : ndarray
             an `(N, M)`-shaped array of per-query-point-component flags
-        associated_axes : tuple | None, optional
+        * associated_axes : tuple | None, optional
             A tuple of any associated (non-basic) axes, by default None
 
         Returns
         -------
-        np.ndarray
+        ndarray
             An (N, M, l(fv))-shaped array of containing (or adjacent, if on
             the grid boundary) hypercubes identified by their superior
             corners; `N` is the number of query points, `M` is the number of
@@ -184,25 +195,25 @@ class Ndpolator():
 
         Parameters
         ----------
-        name : str
+        * name : str
             reference label to the interpolation grid
-        query_pts : np.ndarray
-            a numpy ndarray of query points; the expected shape is `(N, M)`,
+        * query_pts : ndarray
+            an ndarray of query points; the expected shape is `(N, M)`,
             where `N` is the number of query points and `M` is the number of
             basic axes.
-        extrapolation_method : str, optional
+        * extrapolation_method : str, optional
             extrapolation method, one of 'none', 'nearest', 'linear'; by
             default 'none'
-        search_algorithm : str, optional
+        * search_algorithm : str, optional
             search algorithm, one of 'kdtree', 'linear'; by default 'kdtree'
 
         Returns
         -------
         dict
-            mandatory keys: 'interps'
-            optional keys: 'dists'
+            * mandatory keys: 'interps'
+            * optional keys: 'dists'
 
-            interps: np.ndarray
+            * interps: ndarray
                 an (N, l(fv))-shaped array of interpolated values, where `N`
                 is the number of query points and `l(fv)` is the length of
                 function values.
@@ -211,9 +222,9 @@ class Ndpolator():
         ------
         ValueError
             * raised when the passed extrapolation method is not one of 'none',
-            'nearest', 'linear'.
+                'nearest', 'linear'.
             * raised when the passed search algorithm is not one of 'kdtree',
-            'linear'.
+                'linear'.
         """
         extrapolation_methods = {
             'none': ExtrapolationMethod.NONE,

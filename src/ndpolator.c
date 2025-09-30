@@ -1,61 +1,21 @@
-/**
- * @file ndpolator.c
- * @brief Main functions and python bindings.
- */
-
 #include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
-/**
- * @private
- * @def PY_ARRAY_UNIQUE_SYMBOL
- * Required by numpy C-API. It defines a unique symbol to be used in other
- * C source files and header files.
- */
-
+/* Required by numpy C-API. It defines a unique symbol to be used in other
+ * C source files and header files. */
 #define PY_ARRAY_UNIQUE_SYMBOL cndpolator_ARRAY_API
 
 #include "ndpolator.h"
 #include "ndp_types.h"
 
-/**
- * @def min(a,b)
- * Computes the minimum of @p a and @p b.
- */
-
+/* Math utility macros */
 #define min(a,b) (((a)<(b))?(a):(b))
-
-/**
- * @def max(a,b)
- * Computes the maximum of @p a and @p b.
- */
-
 #define max(a,b) (((a)>(b))?(a):(b))
-
-/**
- * @def sign(a)
- * Returns the sign of @p a.
- */
-
 #define sign(a) ( ( (a) < 0 )  ?  -1   : ( (a) > 0 ) )
 
-/**
- * <!-- _ainfo() -->
- * @private
- * @brief Internal function for printing ndarray flags from C.
- *
- * @param array numpy ndarray to be analyzed
- * @param print_data boolean, determines whether array contents should be
- * printed.
- *
- * @details
- * The function prints the dimensions, types, flags, and (if @p print_data is
- * TRUE) array contents. This is an internal function that should not be used
- * for anything other than debugging.
- */
-
+/* Internal function for printing ndarray flags from C for debugging */
 void _ainfo(PyArrayObject *array, int print_data)
 {
     int i, ndim, size;
@@ -121,42 +81,12 @@ void _ainfo(PyArrayObject *array, int print_data)
     return;
 }
 
-/**
- * <!-- find_first_geq_than() -->
- * @brief Finds the superior hypercube vertex for the passed parameter.
- *
- * @param axis an #ndp_axis instance to be searched, must be sorted in
- * ascending order
- * @param l index of the left search boundary in the @p axis, normally 0, but
- * can be anything between 0 and @p r-1
- * @param r index of the right search boundary in the @p axis, normally len(@p
- * axis)-1, but can be anything between @p l+1 and len(@p axis)-1
- * @param x value to be found in @p axis
- * @param rtol relative (fractional) tolerance to determine if @p x coincides
- * with a vertex in @p axis
- * @param flag flag placeholder; it will be populated with one of
- * #NDP_ON_GRID, #NDP_ON_VERTEX, #NDP_OUT_OF_BOUNDS
- *
- * @details
- * Uses bisection to find the index in @p axis that points to the first value
- * that is greater or equal to the requested value @p x. Indices @p l and @p r
- * can be used to narrow the search within the array. When the suitable index
- * is found, a flag is set to #NDP_ON_GRID if @p x is in the array's value
- * span, #NDP_OUT_OF_BOUNDS is @p x is either smaller than @p axis[0] or
- * larger than @p axis[N-1], and #NDP_ON_VERTEX if @p x is within @p rtol of
- * the value in the array.
- *
- * @return index of the first value in the array that is greater-or-equal-to
- * the requested value @p x. It also sets the @p flag accordingly. 
- */
-
 int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int *flag)
 {
     int debug = 0;
     int m = l + (r - l) / 2;
 
     while (l != r) {
-        // if (x > (1-sign(axis->val[m])*rtol)*axis->val[m])
         if (x + rtol > axis->val[m])
             l = m + 1;
         else
@@ -177,27 +107,7 @@ int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int
     return l;
 }
 
-/**
- * <!-- idx2pos() -->
- * @brief Converts an array of indices into an integer position of the array.
- *
- * @param axes a ndp_axes structure that holds all ndpolator axes
- * @param vdim vertex length (number of function values per grid point)
- * @param index a naxes-dimensional array of indices
- * @param pos placeholder for the position index in the NDP grid that
- * corresponds to per-axis indices
- *
- * @details
- * For efficiency, all ndpolator arrays are 1-dimensional, where axes are
- * stacked in the usual C order (last axis runs first). Referring to grid
- * elements can be done either by position in the 1-dimensional array, or
- * per-axis indices. This function converts from the index representation to
- * position.
- *
- * @return #ndp_status.
- */
-
-int idx2pos(ndp_axes *axes, int vdim, int *index, int *pos)
+int ndp_idx2pos(ndp_axes *axes, int vdim, int *index, int *pos)
 {
     *pos = axes->cplen[0]*index[0];
     for (int i = 1; i < axes->len; i++)
@@ -207,26 +117,7 @@ int idx2pos(ndp_axes *axes, int vdim, int *index, int *pos)
     return NDP_SUCCESS;
 }
 
-/**
- * <!-- pos2idx() -->
- * @brief Converts position in the array into an array of per-axis indices.
- *
- * @param axes a ndp_axes structure that holds all ndpolator axes
- * @param vdim vertex length (number of function values per grid point)
- * @param pos position index in the grid
- * @param idx an array of per-axis indices; must be allocated
- *
- * @details
- * For efficiency, all ndpolator arrays are 1-dimensional, where axes are
- * stacked in the usual C order (last axis runs first). Referring to grid
- * elements can be done either by position in the 1-dimensional array, or
- * per-axis indices. This function converts from position index representation
- * to an array of per-axis indices.
- * 
- * @return #ndp_status.
- */
-
-int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
+int ndp_pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
 {
     int debug = 0;
 
@@ -243,34 +134,10 @@ int pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
     return NDP_SUCCESS;
 }
 
-/**
- * <!-- c_ndpolate() -->
- * @brief Linear interpolation and extrapolation on a fully defined hypercube.
- *
- * @param naxes ndpolator dimension (number of axes)
- * @param vdim vertex length (number of function values per grid point)
- * @param x point of interest
- * @param fv naxes-dimensional unit hypercube of function values
- *
- * @details
- * Interpolates (or extrapolates) function values on a @p naxes -dimensional
- * fully defined hypercube in a query point @p x. Function values are
- * @p vdim -dimensional. The hypercube is assumed unit-normalized and @p x
- * components are relative to the hypercube. For example, if @p naxes = 3, the
- * hypercube will be an array of length 2<sup>3</sup> = 8, with hypercube
- * vertices at {(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0,
- * 1), (1, 1, 0), (1, 1, 1)}, and @p x a 3-dimensional array w.r.t. the
- * hypercube, i.e. @p x = (0.3, 0.4, 0.6) for interpolation, or @p x = (-0.2,
- * -0.3, 0.6) for extrapolation.
- *
- * @warning
- * For optimization purposes, the function overwrites @p fv values. The user
- * is required to make a copy of the @p fv array if the contents are meant to
- * be reused.
- *
- * @return #ndp_status status code.
+/* Linear interpolation and extrapolation on a fully defined hypercube.
+ * IMPORTANT: For optimization purposes, this function overwrites fv values.
+ * The user must make a copy of the fv array if contents need to be reused.
  */
-
 int c_ndpolate(int naxes, int vdim, double *x, double *fv)
 {
     int debug = 0;
@@ -307,78 +174,7 @@ int _compare_indexed_dists(const void *a, const void *b)
     return (((indexed_dists *) a)->idx > ((indexed_dists *) b)->idx) ? 1 : -1;
 }
 
-/**
- * <!-- find_nearest() -->
- * @brief Finds the nearest defined value on the grid.
- *
- * @param normed_elem unit hypercube-normalized query point
- * @param elem_index superior corner of the containing/nearest hypercube
- * @param elem_flag flag per query point component
- * @param table #ndp_table instance with full ndpolator definition
- * @param extrapolation_method a #ndp_extrapolation_method that determines
- * whether to find the nearest defined vertex or the nearest fully defined
- * hypercube.
- * @param search_algorithm a #ndp_search_algorithm that determines whether to
- * use kdtree's spatial index or linear search
- * @param dist placeholder for distance between @p normed_elem and the nearest
- * fully defined hypercube
- *
- * @details
- * Find the nearest defined vertex or the nearest fully defined hypercube.
- *
- * Parameter @p normed_elem provides coordinates of the query point in unit
- * hypercube space. For example, `normed_elem=(0.3, 0.8, 0.2)` provides
- * coordinates of the query point with respect to the inferior hypercube
- * corner, which in this case would be within the hypercube. On the other
- * hand, `normed_elem=(-0.2, 0.3, 0.4)` would lie outside of the hypercube.
- *
- * Parameter @p elem_index provides coordinates of the superior hypercube
- * corner (i.e., indices of each axis where the corresponding value is the
- * first value greater than the query point coordinate). For example, if the
- * query point (in index space) is `(4.2, 5.6, 8.9)`, then `elem_index=(5, 6,
- * 9)`.
- *
- * Parameter @p elem_flag flags each coordinate of the @p normed_elem. Flags
- * can be either #NDP_ON_GRID, #NDP_ON_VERTEX, or #NDP_OUT_OF_BOUNDS. This is
- * important because @p elem_index points to the nearest larger axis value if
- * the coordinate does not coincide with the axis vertex, and it points to the
- * vertex itself if it coincides with the coordinate. For example, if
- * `axis=[0,1,2,3,4]` and the requested element is `1.5`, then @p elem_index
- * will equal 2; if the requested element is `1.0`, then @p elem_index will
- * equal 1; if the requested element is `-0.3`, then @p elem_index will equal
- * 0. In order to correctly account for out-of-bounds and on-vertex requests,
- *    the function needs to be aware of the flags.
- *
- * Parameter @p table is an #ndp_table structure that defines all relevant
- * grid parameters. Of particular use here is the grid of function values and
- * all axis definitions.
- *
- * Parameter @p extrapolation_method determines whether to find the nearest
- * vertex (NDP_METHOD_NEAREST) or the nearest fully defined hypercube
- * (NDP_METHOD_LINEAR). Under the hood this determines which mask is used from
- * the underlying table: @p table->vmask or @p table->hcmask. The first one
- * masks defined vertices, and the second one masks fully defined hypercubes.
- * If a vertex (or a hypercube) is defined, the value of the mask is set to 1;
- * otherwise it is set to 0. These arrays have @p table->nverts elements,
- * which equals to the product of the lengths of all basic axes.
- *
- * @param search_algorithm a #ndp_search_algorithm that determines whether to
- * use kdtree or linear search. Building a kdtree spatial index is an upfront
- * cost, but it speeds up searches significantly for large tables. Its time
- * complexity scales as O(logN), where N is the number of defined vertices.
- * For smaller tables, a linear search might be faster because there is no
- * upfront cost, but its time complexity scales as O(N).
- *
- * The function computes Euclidean square distances for each masked grid point
- * from the requested element and returns the pointer to the nearest function
- * value. The search is optimized by searching over basic axes first. The
- * @p dist parameter is set to the minimal distance.
- *
- * @return allocated pointer to the nearest coordinates. The calling function
- * must free the memory once done.
- */
-
-int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist)
+int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist)
 {
     int debug = 0;
     int min_pos;
@@ -405,7 +201,7 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
 
                     for (int j = 0; j < table->axes->nbasic; j++) {
                         coords[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
-                        // For hypercube tree: subtract 0.5 from superior corner to get hypercube center
+                        /* For hypercube tree: subtract 0.5 from superior corner to get hypercube center */
                         if (extrapolation_method == NDP_METHOD_LINEAR)
                             coords[j] -= 0.5;
                     }
@@ -586,30 +382,6 @@ int *find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_tabl
     return coords;
 }
 
-/**
- * <!-- ndp_query_pts_import() -->
- * @brief Determines hypercube indices, flags, and normalized query point
- * values based on the passed query points.
- *
- * @param nelems number of query points
- * @param qpts query points, an @p nelems -by- @p naxes array of doubles
- * @param axes a @p qpdim -dimensional array of axes
- *
- * @details
- * Computes superior index of the n-dimensional hypercubes that contain query
- * points @p qpts. It does so by calling #find_first_geq_than() sequentially
- * for all @p axes.
- *
- * When any of the query point components coincides with the grid vertex, that
- * component will be flagged by #NDP_ON_VERTEX. This is used in
- * #find_hypercubes() to reduce the dimensionality of the corresponding
- * hypercube. Any query point components that fall outside of the grid
- * boundaries are flagged by #NDP_OUT_OF_BOUNDS. Finally, all components that
- * do fall within the grid are flagged by #NDP_ON_GRID.
- *
- * @return a #ndp_query_pts instance.
- */
-
 ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes)
 {
     int debug = 0;
@@ -672,32 +444,7 @@ ndp_query_pts *ndp_query_pts_import(int nelems, double *qpts, ndp_axes *axes)
     return query_pts;
 }
 
-/**
- * <!-- find_hypercubes() -->
- * @brief Determines n-dimensional hypercubes that contain (or are adjacent
- * to) the query points identified by indices.
- *
- * @param qpts an #ndp_query_pts instance that holds all query point
- * information
- * @param table an #ndp_table instance that holds all axis/grid information
- *
- * @details
- * Hypercubes are n-dimensional subgrids that contain the point of interest
- * (i.e., a query point). If the query point lies within the hypercube, the
- * ndpolator will interpolate based on the function values in the hypercube.
- * If the query point is adjacent to the hypercube, ndpolator will extrapolate
- * instead. The hypercubes here need not be fully defined, i.e. there may be
- * voids (nans) in the table grid.
- *
- * Depending on @p qpts->flags, the dimension of the hypercube can be reduced.
- * In particular, if any query point component flag is set to #NDP_ON_VERTEX,
- * then the corresponding dimension is eliminated (there is no need to
- * interpolate or extrapolate when the value is already on the axis).
- *
- * @return an array of #ndp_hypercube instances, one per query point.
- */
-
-ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
+ndp_hypercube **ndp_find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
 {
     int debug = 0;
 
@@ -731,9 +478,9 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
         /* point iptr to the i-th index multiplet: */
         iptr = indices + i*axes->len;
 
-        // do not check whether the hypercube is fully defined before reducing
-        // its dimension: it may happen that we don't need the undefined parts
-        // of the hypercube!
+        /* do not check whether the hypercube is fully defined before reducing
+         * its dimension: it may happen that we don't need the undefined parts
+         * of the hypercube! */
 
         /* reduce hypercube dimension for each query point component that coincides with the grid vertex: */
         dim_reduction = 0;
@@ -758,7 +505,7 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
                 if ( (NDP_ON_VERTEX & flags[i*axes->len+k]) == NDP_ON_VERTEX) {
                     /* qpts->normed can either be 0 or 1, with 1 being only on the upper axis boundary: */
                     cidx[k] = qpts->normed[i*axes->len+k] > 0.5 ? iptr[k] : iptr[k]-1;
-                    // cidx[k] = iptr[k]-1;
+                    /* cidx[k] = iptr[k]-1; */
                     continue;
                 }
                 cidx[k] = max(iptr[k]-1+(j / (1 << (hc_size-l-1))) % 2, (j / (1 << (hc_size-l-1))) % 2);
@@ -771,7 +518,7 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
                 printf("\b], ");
             }
 
-            idx2pos(axes, table->vdim, cidx, &tidx);
+            ndp_idx2pos(axes, table->vdim, cidx, &tidx);
             if (table->grid[tidx] != table->grid[tidx])  /* true if nan */
                 fdhc = 0;
 
@@ -791,45 +538,6 @@ ndp_hypercube **find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
     return hypercubes;
 }
 
-/**
- * <!-- ndpolate() -->
- * @brief Runs linear interpolation or extrapolation in n dimensions.
- *
- * @param qpts an #ndp_query_pts instance that holds all query point
- * information
- * @param table an #ndp_table instance that has all identifying information on
- * the interpolating grid itself
- * @param extrapolation_method how extrapolation should be done; one of
- * #NDP_METHOD_NONE, #NDP_METHOD_NEAREST, or #NDP_METHOD_LINEAR.
- * @param search_algorithm a #ndp_search_algorithm that determines whether to
- * use kdtree's spatial index or linear search.
- *
- * @details
- * This is the main workhorse on the ndpolator module. It assumes that the
- * main #ndp_table @p table structure has been set up. It takes the points of
- * interest, @p qpts, and it calls #ndp_query_pts_import() and
- * #find_hypercubes() consecutively, to populate the #ndp_query structure.
- * While at it, the function also checks whether any of the query point
- * components are out of bounds (flag = #NDP_OUT_OF_BOUNDS) and it prepares
- * those query points for extrapolation, depending on the @p
- * extrapolation_method parameter.
- *
- * Once the supporting structures are initialized and populated, #ndpolate()
- * will first handle the out-of-bounds elements. It will set the value of NAN
- * if @p extrapolation_method = #NDP_METHOD_NONE, find the nearest defined
- * grid vertex by using #find_nearest() and set the value to the found nearest
- * value if @p extrapolation_method = #NDP_METHOD_NEAREST, and lookup the
- * nearest fully defined hypercube for extrapolation if
- * @p extrapolation_method = #NDP_METHOD_LINEAR.
- *
- * Finally, the ndpolator will loop through all hypercubes and call
- * #c_ndpolate() to get the interpolated or extrapolated function values for
- * each query point. The results are stored in the #ndp_query structure.
- *
- * @return a #ndp_query structure that holds all information on the specific
- * ndpolator run.
- */
-
 ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm)
 {
     int debug = 0;
@@ -838,12 +546,14 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
     double reduced[table->axes->len];
     ndp_hypercube *hypercube;
 
-    int nelems = qpts->nelems;
+    query->nelems = qpts->nelems;
+    query->extrapolation_method = extrapolation_method;
+    query->search_algorithm = search_algorithm;
 
-    query->hypercubes = find_hypercubes(qpts, table);
+    query->hypercubes = ndp_find_hypercubes(qpts, table);
 
     if (debug) {
-        for (int i = 0; i < qpts->nelems; i++) {
+        for (int i = 0; i < query->nelems; i++) {
             ndp_hypercube *hypercube = query->hypercubes[i];
             printf("  hypercube %d: dim=%d vdim=%d fdhc=%d v=[", i, hypercube->dim, hypercube->vdim, hypercube->fdhc);
             for (int j = 0; j < 1 << hypercube->dim; j++) {
@@ -862,10 +572,10 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
         }
     }
 
-    query->interps = malloc(nelems * table->vdim * sizeof(*(query->interps)));
-    query->dists = calloc(nelems, sizeof(*(query->dists)));
+    query->interps = malloc(query->nelems * table->vdim * sizeof(*(query->interps)));
+    query->dists = calloc(query->nelems, sizeof(*(query->dists)));
 
-    for (int i = 0; i < nelems; i++) {
+    for (int i = 0; i < query->nelems; i++) {
         /* handle out-of-bounds elements first: */
         if (!query->hypercubes[i]->fdhc) {
             switch (extrapolation_method) {
@@ -880,8 +590,8 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     int *elem_flag = qpts->flags + i * table->axes->len;
                     int pos;
 
-                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
-                    idx2pos(table->axes, table->vdim, coords, &pos);
+                    int *coords = ndp_find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
+                    ndp_idx2pos(table->axes, table->vdim, coords, &pos);
                     memcpy(query->interps + i*table->vdim, table->grid + pos, table->vdim * sizeof(*(query->interps)));
                     free(coords);
                     continue;
@@ -895,7 +605,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     int pos;
 
                     /* superior corner coordinates of the nearest fully defined hypercube: */
-                    int *coords = find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
+                    int *coords = ndp_find_nearest(normed_elem, elem_index, elem_flag, table, extrapolation_method, search_algorithm, &(query->dists[i]));
                     double *hc_vertices = malloc(table->vdim * (1 << table->axes->len) * sizeof(*hc_vertices));
 
                     if (debug) {
@@ -928,7 +638,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                             printf("\b]\n");
                         }
 
-                        idx2pos(table->axes, table->vdim, cidx, &pos);
+                        ndp_idx2pos(table->axes, table->vdim, cidx, &pos);
                         memcpy(hc_vertices + j * table->vdim, table->grid + pos, table->vdim * sizeof(*hc_vertices));
                     }
 
@@ -991,26 +701,7 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
     return query;
 }
 
-/**
- * <!-- py_import_query_pts() -->
- * @brief Python wrapper to the #ndp_query_pts_import() function.
- *
- * @param self reference to the module object
- * @param args tuple (axes, query_pts)
- *
- * @details
- * The wrapper takes a tuple of axes and an ndarray of query points, and it
- * calls #ndp_query_pts_import() to compute the indices, flags, and
- * unit-normalized query points w.r.t. the corresponding hypercube. These are
- * returned in a tuple to the calling function.
- *
- * @note: In most (if not all) practical circumstances this function should
- * not be used because of the C-python data translation overhead. Instead, use
- * #py_ndpolate() instead as all allocation is done in C.
- *
- * @return a tuple of (indices, flags, normed_query_pts).
- */
-
+/* Python wrapper to the ndp_query_pts_import() function */
 static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyObject *py_axes, *py_indices, *py_flags, *py_normed_query_pts, *py_combo;
@@ -1071,25 +762,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     return py_combo;
 }
 
-/**
- * <!-- py_hypercubes() -->
- * @brief Python wrapper to the #find_hypercubes() function.
- *
- * @param self reference to the module object
- * @param args tuple (indices, axes, flags, grid)
- *
- * @details
- * The wrapper takes a tuple of indices, axes, flags and function value grid,
- * and it calls #find_hypercubes() to compute the hypercubes, reducing their
- * dimension when possible. Hypercubes are returned to the calling function.
- *
- * @note: In most (if not all) practical circumstances this function should
- * not be used because of the C-python data translation overhead. Instead, use
- * #py_ndpolate() instead as all allocation is done in C.
- *
- * @return an ndarray of hypercubes.
- */
-
+/* Python wrapper to the ndp_find_hypercubes() function */
 static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     PyArrayObject *py_normed_query_pts, *py_indices, *py_flags, *py_grid;
@@ -1125,7 +798,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
 
     table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
 
-    hypercubes = find_hypercubes(qpts, table);
+    hypercubes = ndp_find_hypercubes(qpts, table);
 
     for (int i = 0; i < nelems; i++) {
         npy_intp shape[hypercubes[i]->dim+1];
@@ -1153,21 +826,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     return py_hypercubes;
 }
 
-/**
- * <!-- py_ainfo -->
- * @private
- * @brief Python wrapper to the #_ainfo() function.
- * 
- * @param self reference to the module object
- * @param args tuple (ndarray | print_data)
- * 
- * @details
- * Prints information on the passed array (its dimensions, flags and content
- * if @p print_data = True).
- * 
- * @return None
- */
-
+/* Python wrapper to the _ainfo() function for debugging */
 static PyObject *py_ainfo(PyObject *self, PyObject *args)
 {
     int print_data = 1;
@@ -1181,25 +840,7 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-/**
- * <!-- py_ndpolate() -->
- * @brief Python wrapper to the #ndpolate() function.
- *
- * @param self reference to the module object
- * @param args tuple (query_pts, axes, flags, grid | extrapolation_method)
- *
- * @details
- * The wrapper takes a tuple of query points, axes, flags and function value
- * grid, and it calls #ndpolate() to run interpolation and/or extrapolation in
- * all query points. Interpolated/extrapolated values are returned to the
- * calling function in a (nelems-by-vdim)-dimensional ndarray.
- *
- * @note This is the main (and probably the only practical) entry point from
- * python code to the C ndpolator module.
- * 
- * @return an ndarray of interpolated/extrapolated values.
- */
-
+/* Python wrapper to the ndpolate() function - main entry point */
 static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     ndp_table *table;
@@ -1268,19 +909,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     return py_rv;
 }
 
-/**
- * <!-- _register_enum() -->
- * @private
- * @brief Helper function to transfer C enums to Python enums.
- * 
- * @param self reference to the module object
- * @param enum_name Python-side enum name string
- * @param py_enum Python dictionary that defines enumerated constants
- * 
- * @details
- * Registers an enumerated constant in Python.
- */
-
+/* Helper function to transfer C enums to Python enums */
 void _register_enum(PyObject *self, const char *enum_name, PyObject *py_enum)
 {
     PyObject *py_enum_class = NULL;
@@ -1297,14 +926,7 @@ void _register_enum(PyObject *self, const char *enum_name, PyObject *py_enum)
         Py_CLEAR(py_enum_class);
 }
 
-/**
- * <!-- ndp_register_enums() -->
- * @brief Translates and registers all C-side enumerated types into Python.
- * 
- * @param self reference to the module object
- * @return #ndp_status
- */
-
+/* Translates and registers all C-side enumerated types into Python */
 int ndp_register_enums(PyObject *self)
 {
     PyObject *py_enum;
@@ -1323,10 +945,7 @@ int ndp_register_enums(PyObject *self)
     return NDP_SUCCESS;
 }
 
-/**
- * @brief Standard python boilerplate code that defines methods present in this C module.
- */
-
+/* Standard python boilerplate code that defines methods present in this C module */
 static PyMethodDef cndpolator_methods[] =
 {
     {"ndpolate", (PyCFunction) py_ndpolate, METH_VARARGS | METH_KEYWORDS, "C implementation of N-dimensional interpolation"},
@@ -1336,10 +955,7 @@ static PyMethodDef cndpolator_methods[] =
     {NULL, NULL, 0, NULL}
 };
 
-/**
- * @brief Standard python boilerplate code that defines the ndpolator module.
- */
-
+/* Standard python boilerplate code that defines the ndpolator module */
 static struct PyModuleDef cndpolator_module = 
 {
     PyModuleDef_HEAD_INIT,
@@ -1349,14 +965,7 @@ static struct PyModuleDef cndpolator_module =
     cndpolator_methods
 };
 
-/**
- * <!-- PyInit_cndpolator() -->
- * @private
- * @brief Initializes the ndpolator C module for Python.
- * 
- * @return PyMODINIT_FUNC 
- */
-
+/* Initializes the ndpolator C module for Python */
 PyMODINIT_FUNC PyInit_cndpolator(void)
 {
     PyObject *module;
