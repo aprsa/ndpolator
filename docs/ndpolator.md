@@ -12,7 +12,7 @@ Quick Start Guide
 2. **C API Users**:
    - Start with \ref main_api "Main C API" for core functions
 3. **Understanding the Data**: See \ref data_structures "Data Structures" for key types
-4. **Configuration**: Explore \ref config "Configuration and Setup" for options
+4. **Configuration**: Explore \ref enumerators "Enumerations" for configuration options
 
 ### Python API Quick Reference
 
