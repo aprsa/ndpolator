@@ -13,7 +13,7 @@ echo "Building ndpolator documentation..."
 
 # Update version from pyproject.toml
 echo "Updating version..."
-bash docs/update_version.sh
+bash update_version.sh
 
 # Build documentation
 echo "Running doxygen..."

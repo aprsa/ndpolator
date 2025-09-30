@@ -1,12 +1,13 @@
 #!/bin/bash
-# Script to update Doxyfile version from pyproject.toml
 
-# Get the directory where this script is located (should be docs/)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Get the project root directory (parent of docs/)
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Ground-truth project version is in pyproject.toml
+# This script updates __init__.py and Doxyfile to match that version
+# The script is run automatically by build_docs.sh and CI workflows
+
+# Get the directory where this script is located (project root)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYPROJECT_FILE="$PROJECT_ROOT/pyproject.toml"
-DOXYFILE="$SCRIPT_DIR/Doxyfile"
+DOXYFILE="$PROJECT_ROOT/docs/Doxyfile"
 
 # Extract version from pyproject.toml
 if [ ! -f "$PYPROJECT_FILE" ]; then
@@ -28,5 +29,14 @@ if [ ! -f "$DOXYFILE" ]; then
 fi
 
 sed -i "s/^PROJECT_NUMBER\s*=\s*.*/PROJECT_NUMBER         = $VERSION/" "$DOXYFILE"
+
+# Update Python __init__.py version
+INIT_FILE="$PROJECT_ROOT/ndpolator/__init__.py"
+if [ -f "$INIT_FILE" ]; then
+    sed -i "s/^__version__\s*=\s*['\"][^'\"]*['\"]/__version__ = '$VERSION'/" "$INIT_FILE"
+    echo "Updated Python __version__ to $VERSION"
+else
+    echo "Warning: $INIT_FILE not found" >&2
+fi
 
 echo "Updated Doxyfile PROJECT_NUMBER to $VERSION"

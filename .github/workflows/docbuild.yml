@@ -36,7 +36,7 @@ jobs:
             - name: install doxypypy
               run: pip install doxypypy
             - name: update version in Doxyfile
-              run: bash docs/update_version.sh
+              run: bash update_version.sh
             - name: run doxygen
               run: doxygen docs/Doxyfile
             - name: setup github pages
