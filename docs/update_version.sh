@@ -1,10 +1,12 @@
 #!/bin/bash
 # Script to update Doxyfile version from pyproject.toml
 
+# Get the directory where this script is located (should be docs/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Get the project root directory (parent of docs/)
-PROJECT_ROOT="$(dirname "$(pwd)")"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 PYPROJECT_FILE="$PROJECT_ROOT/pyproject.toml"
-DOXYFILE="$(pwd)/Doxyfile"
+DOXYFILE="$SCRIPT_DIR/Doxyfile"
 
 # Extract version from pyproject.toml
 if [ ! -f "$PYPROJECT_FILE" ]; then
