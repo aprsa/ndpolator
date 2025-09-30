@@ -1,5 +1,11 @@
 include README.md
+include LICENSE
+include update_version.sh
+include build_docs.sh
+include src/*.c
 include src/*.h
 include external/kdtree/*
-include docs/gh2doxy.py
+include docs/Doxyfile
+include docs/*.md
 include docs/figs/*
+recursive-include docs/html *
