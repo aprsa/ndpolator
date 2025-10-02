@@ -14,8 +14,8 @@ ext_modules = [
         ],
         language='c',
         extra_link_args=['-lm', '-pthread'],
-        # extra_compile_args=["-Werror", "-O3"],
-        extra_compile_args=["-Werror", "-O0", "-g"],
+        extra_compile_args=["-Werror", "-O3"],
+        # extra_compile_args=["-Werror", "-O0", "-g"],
         include_dirs=['src', 'external/kdtree', numpy.get_include()],
     ),
 ]
