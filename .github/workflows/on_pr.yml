@@ -13,17 +13,8 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
-                os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14]
-                toolchain:
-                    - {compiler: gcc, version: 13}
-                exclude:
-                    - os: macos-14
-                      python-version: 3.7
-                    - os: ubuntu-24.04
-                      python-version: 3.7
-                    - os: ubuntu-24.04
-                      python-version: 3.8
+                python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+                os: [ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
 
         name: ${{ matrix.os }} python ${{ matrix.python-version }}
         steps:
@@ -34,6 +25,14 @@ jobs:
               uses: actions/setup-python@v5
               with:
                 python-version: ${{ matrix.python-version }}
+                cache: 'pip'
+                cache-dependency-path: |
+                    requirements*.txt
+                    setup.py
+                    pyproject.toml
+
+            - name: upgrade pip tooling
+              run: pip install --upgrade pip setuptools wheel
 
             - name: install ndpolator
               run: pip install .
