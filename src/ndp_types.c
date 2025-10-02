@@ -21,23 +21,25 @@ ndp_axis *ndp_axis_new()
 
     axis->len = 0;
     axis->val = NULL;
+    axis->owns_data = 1;
 
     return axis;
 }
 
-ndp_axis *ndp_axis_new_from_data(int len, double *val)
+ndp_axis *ndp_axis_new_from_data(int len, double *val, int owns_data)
 {
     ndp_axis *axis = malloc(sizeof(*axis));
 
     axis->len = len;
     axis->val = val;
+    axis->owns_data = owns_data;
 
     return axis;
 }
 
 int ndp_axis_free(ndp_axis *axis)
 {
-    if (axis->val)
+    if (axis->owns_data && axis->val)
         free(axis->val);
     free(axis);
 
@@ -88,7 +90,7 @@ ndp_axes *ndp_axes_new_from_python(PyObject *py_axes, int nbasic)
         PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
         int py_axis_len = PyArray_DIM(py_axis, 0);
         double *py_axis_data = (double *) PyArray_DATA(py_axis);
-        axis[i] = ndp_axis_new_from_data(py_axis_len, py_axis_data);
+        axis[i] = ndp_axis_new_from_data(py_axis_len, py_axis_data, /* owns_data = */ 0);
     }
 
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
@@ -173,6 +175,7 @@ ndp_table *ndp_table_new()
     table->vdim = 0;
     table->axes = NULL;
     table->grid = NULL;
+    table->owns_data = 1;
 
     table->vtree = NULL;
     table->hctree = NULL;
@@ -184,7 +187,7 @@ ndp_table *ndp_table_new()
     return table;
 }
 
-ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
+ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int owns_data)
 {
     int debug = 0;
     int pos;
@@ -194,6 +197,7 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
     ndp_table *table = ndp_table_new();
 
     table->axes = axes;
+    table->owns_data = owns_data;
     table->vdim = vdim;
     table->grid = grid;
 
@@ -306,7 +310,7 @@ ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObjec
     PyArrayObject *py_behaved_grid = (PyArrayObject *) PyArray_FROM_OTF((PyObject *) py_grid, NPY_DOUBLE, NPY_ARRAY_CARRAY);
     double *grid = (double *) PyArray_DATA(py_behaved_grid);
 
-    return ndp_table_new_from_data(axes, vdim, grid);
+    return ndp_table_new_from_data(axes, vdim, grid, /* owns_data = */ 0);
 }
 
 void ndp_table_print(ndp_table *table)
@@ -330,7 +334,7 @@ int ndp_table_free(ndp_table *table)
     if (table->axes)
         ndp_axes_free(table->axes);
 
-    if (table->grid)
+    if (table->owns_data && table->grid)
         free(table->grid);
 
     if (table->vtree)
