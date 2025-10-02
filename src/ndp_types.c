@@ -1,16 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-/* Required by numpy C-API. It tells the wrapper that numpy's import_array() is not
- * invoked in this source file but that the API does use numpy arrays.
- */
-#define NO_IMPORT_ARRAY
-
-/* Required by numpy C-API. It defines a unique symbol that is used in c/h source
- * files that do not call import_array().
- */
-#define PY_ARRAY_UNIQUE_SYMBOL cndpolator_ARRAY_API
-
 #include "ndp_types.h"
 #include "ndpolator.h"
 #include "kdtree.h"
@@ -73,27 +63,6 @@ ndp_axes *ndp_axes_new_from_data(int naxes, int nbasic, ndp_axis **axis)
         for (int j = i+1; j < naxes; j++)
             axes->cplen[i] *= axes->axis[j]->len;
     }
-
-    return axes;
-}
-
-ndp_axes *ndp_axes_new_from_python(PyObject *py_axes, int nbasic)
-{
-    ndp_axes *axes;
-
-    int naxes = PyTuple_Size(py_axes);
-    ndp_axis **axis = malloc(naxes*sizeof(*axis));
-
-    if (nbasic == 0) nbasic = naxes;
-
-    for (int i = 0; i < naxes; i++) {
-        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        int py_axis_len = PyArray_DIM(py_axis, 0);
-        double *py_axis_data = (double *) PyArray_DATA(py_axis);
-        axis[i] = ndp_axis_new_from_data(py_axis_len, py_axis_data, /* owns_data = */ 0);
-    }
-
-    axes = ndp_axes_new_from_data(naxes, nbasic, axis);
 
     return axes;
 }
@@ -297,20 +266,6 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int o
     }
 
     return table;
-}
-
-ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObject *py_grid)
-{
-    ndp_axes *axes = ndp_axes_new_from_python(py_axes, nbasic);
-
-    int ndims = PyArray_NDIM(py_grid);
-    int vdim = PyArray_DIM(py_grid, ndims-1);
-
-    /* work around the misbehaved array: */
-    PyArrayObject *py_behaved_grid = (PyArrayObject *) PyArray_FROM_OTF((PyObject *) py_grid, NPY_DOUBLE, NPY_ARRAY_CARRAY);
-    double *grid = (double *) PyArray_DATA(py_behaved_grid);
-
-    return ndp_table_new_from_data(axes, vdim, grid, /* owns_data = */ 0);
 }
 
 void ndp_table_print(ndp_table *table)
