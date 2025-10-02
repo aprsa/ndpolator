@@ -186,6 +186,70 @@ class Ndpolator():
         hypercubes = cndpolator.hypercubes(normed_query_pts=normed_query_pts, indices=indices, axes=axes, flags=flags, grid=grid)
         return hypercubes
 
+    def distance(self, name: str, query_pts: np.ndarray) -> np.ndarray:
+        """
+        Computes the squared Euclidean distance from each query point to the
+        nearest hypercube in the interpolation grid. Points inside the grid
+        have distance 0, while points outside have distance equal to the
+        squared distance to the nearest edge, face, or vertex of the grid.
+
+        This method is useful for:
+        * Determining which query points lie outside the interpolation grid
+        * Computing distances without performing extrapolation
+        * Quality control and validation of query point positions
+
+        Parameters
+        ----------
+        * name : str
+            reference label to the interpolation grid
+        * query_pts : ndarray
+            an ndarray of query points; the expected shape is `(N, M)`,
+            where `N` is the number of query points and `M` is the number of
+            basic axes.
+
+        Returns
+        -------
+        ndarray
+            An (N, 1)-shaped array of squared distances from each query point
+            to the nearest hypercube. Distance is 0 for points inside the grid,
+            and >0 for points outside the grid boundaries.
+
+        Examples
+        --------
+        >>> ndp = Ndpolator((np.array([0., 1., 2.]), np.array([0., 1., 2.])))
+        >>> grid = np.random.rand(3, 3, 1)
+        >>> ndp.register('test', None, grid)
+        >>> query_pts = np.array([[0.5, 0.5], [2.5, 1.0], [-0.5, -0.5]])
+        >>> dists = ndp.distance('test', query_pts)
+        >>> # First point inside grid: distance = 0
+        >>> # Second point outside (right): distance = 0.25
+        >>> # Third point outside (diagonal): distance = 0.5
+        """
+
+        # make sure that the array we're passing to C is contiguous:
+        query_pts = np.ascontiguousarray(query_pts)
+
+        # if cndpolator structures have been used before, use the cached
+        # version, otherwise initialize and cache it for subsequent use:
+        capsule = self.table[name]['capsule']
+        if capsule:
+            dists = cndpolator.distance(query_pts, capsule, None, None, len(self.axes))
+        else:
+            associated_axes = self.table[name]['associated_axes']
+            grid = self.table[name]['grid']
+            axes = self.axes if associated_axes is None else self.axes + associated_axes
+
+            dists = cndpolator.distance(
+                query_pts,
+                None,
+                axes,
+                grid,
+                len(self.axes)
+            )
+            # Note: distance() doesn't return a capsule, so we don't cache it here
+
+        return dists
+
     def ndpolate(self, name: str, query_pts: np.ndarray, extrapolation_method: str = 'none', search_algorithm: str = 'kdtree') -> np.ndarray:
         """
         Performs n-dimensional interpolation or extrapolation. This is the
@@ -252,7 +316,13 @@ class Ndpolator():
         # version, otherwise initialize and cache it for subsequent use:
         capsule = self.table[name]['capsule']
         if capsule:
-            interps, dists = cndpolator.ndpolate(capsule=capsule, query_pts=query_pts, nbasic=len(self.axes), extrapolation_method=extrapolation_method, search_algorithm=search_algorithm)
+            interps, dists = cndpolator.ndpolate(
+                capsule=capsule,
+                query_pts=query_pts,
+                nbasic=len(self.axes),
+                extrapolation_method=extrapolation_method,
+                search_algorithm=search_algorithm
+            )
         else:
             associated_axes = self.table[name]['associated_axes']
             grid = self.table[name]['grid']
