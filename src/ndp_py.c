@@ -195,9 +195,59 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 /* Python wrapper to the ndp_distance() function */
 static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    /* TODO: Implement distance wrapper if needed */
-    PyErr_SetString(PyExc_NotImplementedError, "distance function not yet implemented");
-    return NULL;
+    ndp_table *table;
+    int owns_table = 0;
+
+    PyObject *py_capsule = NULL;
+    PyArrayObject *py_query_pts = NULL;
+    PyObject *py_axes = NULL;
+    PyArrayObject *py_grid = NULL;
+    int nbasic = 0;
+
+    static char *kwlist[] = {"query_pts", "capsule", "axes", "grid", "nbasic", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOi", kwlist, &py_query_pts, &py_capsule, &py_axes, &py_grid, &nbasic))
+        return NULL;
+
+    if (!PyCapsule_IsValid(py_capsule, NULL) && !(py_axes && py_grid)) {
+        PyErr_SetString(PyExc_ValueError, 
+            "Either capsule must be valid or axes and grid must be provided");
+        return NULL;
+    }
+
+    if (PyCapsule_IsValid(py_capsule, NULL)) {
+        owns_table = 0;
+        table = (ndp_table *) PyCapsule_GetPointer(py_capsule, NULL);
+    }
+    else if (py_query_pts && py_axes && py_grid) {
+        owns_table = 1;
+        table = ndp_table_new_from_python(py_axes, nbasic != 0 ? nbasic : PyArray_DIM(py_grid, 0), py_grid);
+    }
+    else
+        return NULL;
+
+    int nelems = PyArray_DIM(py_query_pts, 0);
+    double *qpts = (double *) PyArray_DATA(py_query_pts);
+    ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
+    double *distances = malloc(nelems * sizeof(*distances));
+
+    for (int i = 0; i < nelems; i++) {
+        double *normed_elem = query_pts->normed + i * table->axes->len;
+        int *elem_index = query_pts->indices + i * table->axes->len;
+        int *elem_flag = query_pts->flags + i * table->axes->len;
+
+        int *coords = ndp_find_nearest(normed_elem, elem_index, elem_flag, table, NDP_METHOD_LINEAR, NDP_SEARCH_KDTREE, &distances[i]);
+        free(coords);
+    }
+
+    ndp_query_pts_free(query_pts);
+    if (owns_table)
+        ndp_table_free(table);
+
+    npy_intp ddim[] = {nelems, 1};
+    PyObject *py_distances = PyArray_SimpleNewFromData(2, ddim, NPY_DOUBLE, distances);
+    PyArray_ENABLEFLAGS((PyArrayObject *) py_distances, NPY_ARRAY_OWNDATA);
+    return py_distances;
 }
 
 /* Python wrapper to the ndp_find_hypercubes() function */
