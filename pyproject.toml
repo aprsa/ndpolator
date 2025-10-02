@@ -14,7 +14,7 @@ name = "ndpolator"
 version = "1.3.0"
 description = "ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 license = "GPL-3.0-or-later"
 authors = [
     { name = "Andrej Prša", email = "aprsa@villanova.edu" },
