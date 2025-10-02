@@ -71,10 +71,10 @@ def test_ndp_query_pts_import():
 
     expected_normed_query_pts = np.array([
         [-0.25, 0.25, 0.50],
-        [ 0.25, 0.50, 0.75],
-        [ 0.50, 0.75, 0.00],
-        [ 0.75, 0.00, 1.00],
-        [ 0.00, 0.25, 1.25],
+        [+0.25, 0.50, 0.75],
+        [+0.50, 0.75, 0.00],
+        [+0.75, 0.00, 1.00],
+        [+0.00, 0.25, 1.25],
     ])
 
     assert np.allclose(indices, expected_indices)
@@ -161,13 +161,22 @@ def test_distances():
         [5250, 5.25, 0.525],  # +1, +1, +1
     ])
 
-    offset_dims = np.array([3, 2, 3, 2, 1, 2, 3, 2, 3, 2, 1, 2, 1, 0, 1, 2, 1, 2, 3, 2, 3, 2, 1, 2, 3, 2, 3], dtype=int)
+    # Expected distances for LINEAR extrapolation (distance to grid boundary)
+    # offset_dims counts how many dimensions are outside the grid
+    offset_dims_linear = np.array([3, 2, 3, 2, 1, 2, 3, 2, 3, 2, 1, 2, 1, 0, 1, 2, 1, 2, 3, 2, 3, 2, 1, 2, 3, 2, 3], dtype=int)
+    expected_dists_linear = offset_dims_linear * 0.25**2
+
+    # Expected distances for NEAREST extrapolation (distance to nearest vertex)
+    # For points outside the grid, all are 0.25 grid units from nearest vertex in each dimension
+    # For points inside (only point 13), distance is 0
+    expected_dists_nearest = np.full(27, 3 * 0.25**2)  # All have 3 dims at 0.25 distance
+    expected_dists_nearest[13] = 0.0  # Point inside grid
 
     ndpolants = ndp.ndpolate('main', query_pts, extrapolation_method='nearest')
-    assert np.allclose(ndpolants['dists'][:,0], offset_dims*0.25**2)
+    assert np.allclose(ndpolants['dists'][:,0], expected_dists_nearest)
 
     ndpolants = ndp.ndpolate('main', query_pts, extrapolation_method='linear')
-    assert np.allclose(ndpolants['dists'][:,0], offset_dims*0.25**2)
+    assert np.allclose(ndpolants['dists'][:,0], expected_dists_linear)
 
 
 def test_ndpolate():
