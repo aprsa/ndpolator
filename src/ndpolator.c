@@ -121,7 +121,7 @@ int ndp_pos2idx(ndp_axes *axes, int vdim, int pos, int *idx)
 {
     int debug = 0;
 
-    for (int i=0; i < axes->len; i++)
+    for (int i = 0; i < axes->len; i++)
         idx[i] = pos / vdim / axes->cplen[i] % axes->axis[i]->len;
 
     if (debug) {
@@ -174,42 +174,97 @@ int _compare_indexed_dists(const void *a, const void *b)
     return (((indexed_dists *) a)->idx > ((indexed_dists *) b)->idx) ? 1 : -1;
 }
 
+struct kdtree *ndp_kdtree_create(ndp_table *table, ndp_extrapolation_method extrapolation_method)
+{
+    struct kdtree *tree = kd_create(table->axes->nbasic);
+    int *mask = extrapolation_method == NDP_METHOD_NEAREST ? table->vmask : table->hcmask;
+    
+    for (int i = 0; i < table->nverts; i++) {
+        if (mask[i]) {
+            double *node = malloc(table->axes->nbasic * sizeof(*node));
+            
+            for (int j = 0; j < table->axes->nbasic; j++) {
+                node[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+                /* For hypercube tree: subtract 0.5 from superior corner to get hypercube center */
+                if (extrapolation_method == NDP_METHOD_LINEAR)
+                    node[j] -= 0.5;
+            }
+            
+            kd_insert(tree, node, (void *)(uintptr_t) i);
+            free(node);
+        }
+    }
+    
+    return tree;
+}
+
+double ndp_distance(double *normed_elem, int *elem_index, int *nearest_coords, ndp_table *table)
+{
+    /* Computes the squared distance from the query point to the nearest edge/face/vertex 
+     * of the nearest hypercube (for LINEAR method only).
+     * 
+     * For BASIC axes (0 to nbasic-1):
+     *   nearest_coords[j] is the superior corner of the hypercube.
+     *   The hypercube spans from nearest_coords[j]-1 to nearest_coords[j].
+     *   Distance is 0 if inside hypercube, otherwise distance to nearest edge/face/vertex.
+     *
+     * For ASSOCIATED axes (nbasic to len-1):
+     *   nearest_coords[j] is the rounded grid coordinate.
+     *   Distance is the absolute distance from query point to this coordinate.
+     *   (Associated axes are not part of the hypercube structure for LINEAR interpolation;
+     *    they simply contribute their deviation from the nearest grid point)
+     */
+
+    double cdist = 0.0;
+
+    /* Basic axes: hypercube edge/face/vertex logic */
+    for (int j = 0; j < table->axes->nbasic; j++) {
+        double query_coord = elem_index[j] + normed_elem[j] - 1.0;
+        double diff;
+        
+        if (query_coord < nearest_coords[j] - 1.0) {
+            /* Query point is below the hypercube */
+            diff = (nearest_coords[j] - 1.0) - query_coord;
+        }
+        else if (query_coord > nearest_coords[j]) {
+            /* Query point is above the hypercube */
+            diff = query_coord - nearest_coords[j];
+        }
+        else {
+            /* Query point is inside the hypercube in this dimension */
+            diff = 0.0;
+        }
+        
+        cdist += diff * diff;
+    }
+    
+    /* Associated axes: distance from rounded coordinate */
+    for (int j = table->axes->nbasic; j < table->axes->len; j++) {
+        double query_coord = elem_index[j] + normed_elem[j] - 1.0;
+        double diff = query_coord - nearest_coords[j];
+        cdist += diff * diff;
+    }
+
+    return cdist;
+}
+
 int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist)
 {
     int debug = 0;
     int min_pos;
     double cdist;
-    int *coords = malloc(table->axes->len * sizeof(*coords));
+    int nearest;
 
     typedef struct {
         int idx;
         double dist;
     } indexed_dists;
-    
+
     indexed_dists *dists = malloc(table->nverts * sizeof(*dists));
 
+    int *coords = malloc(table->axes->len * sizeof(*coords));
     int *mask = extrapolation_method == NDP_METHOD_NEAREST ? table->vmask : table->hcmask;
-
-    if (search_algorithm == NDP_SEARCH_KDTREE) {
-        /* if this is the first call to find_nearest and k-d trees are used, lazy-load the corresponding spatial index */
-        struct kdtree **tree_ptr = extrapolation_method == NDP_METHOD_NEAREST ? &table->vtree : &table->hctree;
-        if (!*tree_ptr) {
-            *tree_ptr = kd_create(table->axes->nbasic);
-            for (int i = 0; i < table->nverts; i++)
-                if (mask[i]) {
-                    double *coords = malloc(table->axes->nbasic * sizeof(double));
-
-                    for (int j = 0; j < table->axes->nbasic; j++) {
-                        coords[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
-                        /* For hypercube tree: subtract 0.5 from superior corner to get hypercube center */
-                        if (extrapolation_method == NDP_METHOD_LINEAR)
-                            coords[j] -= 0.5;
-                    }
-
-                    kd_insert(*tree_ptr, coords, (void *)(uintptr_t) i);
-                }
-        }
-    }
+    struct kdtree **tree_ptr = extrapolation_method == NDP_METHOD_NEAREST ? &table->vtree : &table->hctree;
 
     if (debug) {
         printf("normed_elem=[");
@@ -223,76 +278,63 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
         printf("\b]\n");
     }
 
-    if (search_algorithm == NDP_SEARCH_KDTREE) {
-        struct kdtree *tree = extrapolation_method == NDP_METHOD_NEAREST ? table->vtree : table->hctree;
+    if (search_algorithm == NDP_SEARCH_KDTREE && !*tree_ptr) {
+        /* lazy-load the spatial index */
+        *tree_ptr = ndp_kdtree_create(table, extrapolation_method);
+    }
 
-        /* Convert query point to k-d tree coordinate space */
-        double *query_coords = malloc(table->axes->nbasic * sizeof(double));
-        
-        for (int j = 0; j < table->axes->nbasic; j++) {
-            if (extrapolation_method == NDP_METHOD_NEAREST) {
-                query_coords[j] = (elem_index[j] - 1) + normed_elem[j];
-            } else {
-                /* For hypercube trees use hypercube center coordinates */
-                query_coords[j] = elem_index[j] + normed_elem[j] - 0.5;
-            }
-        }
+    if (search_algorithm == NDP_SEARCH_KDTREE) {
+        double query_coords[table->axes->nbasic];
+        for (int j = 0; j < table->axes->nbasic; j++)
+            query_coords[j] = elem_index[j] + normed_elem[j] - 1.0;
 
         /* Query the k-d tree */
-        struct kdres *result = kd_nearest(tree, query_coords);
-        if (result && kd_res_size(result) > 0) {
-            /* Extract the vertex index from the result */
-            int vertex_idx = (int)(uintptr_t) kd_res_item_data(result);
+        struct kdres *result = kd_nearest(*tree_ptr, query_coords);
 
-            /* Calculate distance for consistency with linear search */
-            cdist = 0.0;
+        if (result && kd_res_size(result) > 0) {
+            nearest = (int)(uintptr_t) kd_res_item_data(result);
+            
+            /* Convert vertex index to grid coordinates (basic axes) */
             for (int j = 0; j < table->axes->nbasic; j++) {
-                int coord = vertex_idx / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
-                
-                if (extrapolation_method == NDP_METHOD_NEAREST) {
-                    double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
-                    if (normed_elem[j] < 0 || normed_elem[j] > 1)
-                        cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
-                    else
-                        cdist += (round(elem_index[j]+normed_elem[j]-1)-coord)*(round(elem_index[j]+normed_elem[j]-1)-coord);
-                }
-                
-                if (extrapolation_method == NDP_METHOD_LINEAR) {
-                    /* For linear method, use the original normalized coordinate directly */
-                    double offset_normed_elem = normed_elem[j];
-                    if (offset_normed_elem < 0)
-                        cdist += offset_normed_elem*offset_normed_elem;
-                    else if (offset_normed_elem > 1)
-                        cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
-                }
+                coords[j] = nearest / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
             }
             
-            *dist = cdist;
-            kd_res_free(result);
-            free(query_coords);
-            free(dists);
+            /* Add associated axes: */
+            for (int j = table->axes->nbasic; j < table->axes->len; j++) {
+                coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+            }
             
-            /* Convert vertex index back to coordinates */
-            int *coords = malloc(table->axes->nbasic * sizeof(int));
-            if (!coords) return NULL;
-            
-            for (int j = 0; j < table->axes->nbasic; j++) {
-                coords[j] = vertex_idx / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+            /* Calculate squared distance */
+            if (extrapolation_method == NDP_METHOD_NEAREST) {
+                /* For NEAREST method, calculate squared distance from query point to the found vertex.
+                 * Include ALL axes - a fully defined vertex requires being on-grid for all dimensions. */
+                *dist = 0.0;
+                for (int j = 0; j < table->axes->len; j++) {
+                    double query_coord = elem_index[j] + normed_elem[j] - 1.0;
+                    double diff = query_coord - coords[j];
+                    *dist += diff * diff;
+                }
+            }
+            else if (extrapolation_method == NDP_METHOD_LINEAR) {
+                /* For LINEAR method, calculate squared distance to nearest edge/face/vertex of hypercube */
+                *dist = ndp_distance(normed_elem, elem_index, coords, table);
             }
             
             if (debug) {
-                printf("k-d tree found vertex %d at coords [", vertex_idx);
-                for (int j = 0; j < table->axes->nbasic; j++) {
+                printf("k-d tree found vertex/hypercube %d at coords [", nearest);
+                for (int j = 0; j < table->axes->len; j++) {
                     printf("%d ", coords[j]);
                 }
-                printf("\b] with distance %f\n", cdist);
+                printf("\b] with distance %f\n", *dist);
             }
             
+            kd_res_free(result);
+            free(dists);
             return coords;
         }
         
         kd_res_free(result);
-        free(query_coords);
+        /* Fall through to linear search if kdtree query failed */
     }
 
     /* Fallback to linear search */
@@ -306,51 +348,40 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
             continue;
         }
 
+        /* Convert vertex index to grid coordinates (basic axes) */
+        int temp_coords[table->axes->len];
+        for (int j = 0; j < table->axes->nbasic; j++) {
+            temp_coords[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
+        }
+        
+        /* Add associated axes coordinates (nearest grid point to query) */
+        for (int j = table->axes->nbasic; j < table->axes->len; j++) {
+            temp_coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+        }
+
+        /* Calculate squared distance */
+        if (extrapolation_method == NDP_METHOD_NEAREST) {
+            /* For NEAREST method, calculate squared Euclidean distance to vertex.
+             * Include ALL axes - a fully defined vertex requires being on-grid for all dimensions. */
+            cdist = 0.0;
+            for (int j = 0; j < table->axes->len; j++) {
+                double query_coord = elem_index[j] + normed_elem[j] - 1.0;
+                double diff = query_coord - temp_coords[j];
+                cdist += diff * diff;
+            }
+        }
+        else if (extrapolation_method == NDP_METHOD_LINEAR) {
+            /* For LINEAR method, calculate squared distance to nearest edge/face/vertex of hypercube */
+            cdist = ndp_distance(normed_elem, elem_index, temp_coords, table);
+        }
+
         if (debug) {
             printf("  i=% 4d coord=[", i);
-        }
-
-        /* find the distance to the basic vertex: */
-        cdist = 0.0;
-
-        if (debug) {
             for (int j = 0; j < table->axes->nbasic; j++) {
-                int coord = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
-                printf("%d ", coord);
+                printf("%d ", temp_coords[j]);
             }
-            printf("\b] cdist: 0 -> ");
+            printf("\b] dist=%f\n", cdist);
         }
-
-        for (int j = 0; j < table->axes->nbasic; j++) {
-            /* converts the running index i to j-th coordinate: */
-            int coord = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
-
-            if (extrapolation_method == NDP_METHOD_NEAREST) {
-                /* FIXME: rewrite this logic in terms of offset_normed_elem. */
-                double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
-                if (normed_elem[j] < 0 || normed_elem[j] > 1)
-                    cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
-                else
-                    cdist += (round(elem_index[j]+normed_elem[j]-1)-coord)*(round(elem_index[j]+normed_elem[j]-1)-coord);
-            }
-
-            if (extrapolation_method == NDP_METHOD_LINEAR) {
-                double offset_normed_elem = elem_index[j] - coord + normed_elem[j];
-                if (offset_normed_elem < 0)
-                    cdist += offset_normed_elem*offset_normed_elem;
-                else if (offset_normed_elem > 1)
-                    cdist += (offset_normed_elem-1)*(offset_normed_elem-1);
-                else {
-                    /* coordinate is within the hypercube, no cdist change. */
-                }
-            }
-
-            if (debug)
-                printf("%f -> ", cdist);
-        }
-
-        if (debug)
-            printf("\b\b\b\b\n");
 
         dists[i].dist = cdist;
     }
@@ -361,7 +392,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     min_pos = dists[0].idx;
 
     if (debug)
-        printf("  min_dist=%f min_pos=%d nearest=[", dists[0].dist, dists[0].idx);
+        printf("  min_dist=%f min_pos=%d nearest=[", *dist, dists[0].idx);
 
     /* Assemble the coordinates: */
     for (int j = 0; j < table->axes->nbasic; j++) {
@@ -371,7 +402,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     }
 
     for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-        coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j])));
+        coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
         if (debug)
             printf("%d ", coords[j]);
     }
@@ -379,6 +410,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     if (debug)
         printf("\b]\n");
 
+    free(dists);
     return coords;
 }
 
@@ -732,7 +764,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     for (int i = 0; i < naxes; i++) {
         PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        axis[i] = ndp_axis_new_from_data(PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis));
+        axis[i] = ndp_axis_new_from_data(PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
     }
 
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
@@ -750,9 +782,13 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     py_normed_query_pts = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_DOUBLE, query_pts->normed);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_normed_query_pts, NPY_ARRAY_OWNDATA);
 
-    /* free memory that is not passed back to python: */
-    free(query_pts->requested);
-    free(query_pts);
+    /* indices, flags, and normed are now owned by Python, so NULLify them: */
+    query_pts->indices = NULL;
+    query_pts->flags = NULL;
+    query_pts->normed = NULL;
+
+    /* free all the rest: */
+    ndp_query_pts_free(query_pts);
 
     py_combo = PyTuple_New(3);
     PyTuple_SET_ITEM(py_combo, 0, py_indices);
@@ -760,6 +796,28 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     PyTuple_SET_ITEM(py_combo, 2, py_normed_query_pts);
 
     return py_combo;
+}
+
+/* Python wrapper to the ndp_distance() function */
+static PyObject *py_distance(PyObject *self, PyObject *args)
+{
+    ndp_table *table;
+    int capsule_available = 0;
+
+    PyArrayObject *py_capsule, *py_query_pts;
+
+    // double *normed_elem;
+    // int *elem_index, *nearest_coords;
+    // double dist;
+
+    static char *kwlist[] = {"capsule", "query_pts", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, "OO", kwlist, &py_capsule, &py_query_pts))
+        return NULL;
+
+    // dist = ndp_distance(normed_elem, elem_index, nearest_coords, table);
+
+    // return Py_BuildValue("d", dist);
 }
 
 /* Python wrapper to the ndp_find_hypercubes() function */
@@ -814,13 +872,16 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
         PyTuple_SetItem(py_hypercubes, i, py_hypercube);
     }
 
-    for (int i = 0; i < nelems; i++)
-        free(hypercubes[i]);
-    /* don't free hypercube data, those go back to python */
-
+    for (int i = 0; i < nelems; i++) {
+        /* nullify hypercube data pointers, those are now owned by python: */
+        hypercubes[i]->v = NULL;
+        ndp_hypercube_free(hypercubes[i]);
+    }
     free(hypercubes);
+
     ndp_table_free(table);
-    free(qpts->requested);
+
+    /* only free the container; arrays are owned by python */
     free(qpts);
 
     return py_hypercubes;
@@ -838,6 +899,14 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
     _ainfo(array, print_data);
 
     return Py_None;
+}
+
+/* Destructor for PyCapsule containing ndp_table */
+static void py_table_capsule_destructor(PyObject *capsule)
+{
+    ndp_table *table = (ndp_table *) PyCapsule_GetPointer(capsule, NULL);
+    if (table)
+        ndp_table_free(table);
 }
 
 /* Python wrapper to the ndpolate() function - main entry point */
@@ -868,7 +937,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     }
     else if (py_query_pts && py_axes && py_grid) {
         table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
-        py_capsule = PyCapsule_New((void *) table, NULL, NULL);
+        py_capsule = PyCapsule_New((void *) table, NULL, py_table_capsule_destructor);
     }
     else {
         return NULL;
@@ -950,6 +1019,7 @@ static PyMethodDef cndpolator_methods[] =
 {
     {"ndpolate", (PyCFunction) py_ndpolate, METH_VARARGS | METH_KEYWORDS, "C implementation of N-dimensional interpolation"},
     {"find", (PyCFunction) py_import_query_pts, METH_VARARGS | METH_KEYWORDS, "determine indices, flags and normalized query points"},
+    {"distance", (PyCFunction) py_distance, METH_VARARGS | METH_KEYWORDS, "compute squared distance to nearest edge/face/vertex of hypercube"},
     {"hypercubes", (PyCFunction) py_hypercubes, METH_VARARGS | METH_KEYWORDS, "determine enclosing hypercubes"},
     {"ainfo", py_ainfo, METH_VARARGS, "array information for internal purposes"},
     {NULL, NULL, 0, NULL}

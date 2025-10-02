@@ -62,16 +62,17 @@ typedef enum ndp_status ndp_status;
   * @ingroup data_structures
   * @brief Single axis structure containing vertices for one dimension.
   * @details
-  * An axis, in ndpolator language, is an array of length @p len and vertices
-  * @p val. Axes span ndpolator dimensions: for `N`-dimensional interpolation
+  * An axis, in ndpolator language, is an array of length len and vertices
+  * val. Axes span ndpolator dimensions: for `N`-dimensional interpolation
   * and/or extrapolation, there need to be `N` axes. Note that axes themselves
   * do not have any function values associated to them; they only span the
   * `N`-dimensional grid.
   */
 
 typedef struct ndp_axis {
-    int len;      /*!< Axis length (number of vertices) */
-    double *val;  /*!< Axis vertices array */
+    int len;       /*!< Axis length (number of vertices) */
+    double *val;   /*!< Axis vertices array */
+    int owns_data; /*!< Flag indicating if ndp_axis owns the val array */
 } ndp_axis;
 
 /** @fn ndp_axis *ndp_axis_new(void)
@@ -87,25 +88,26 @@ typedef struct ndp_axis {
  
 ndp_axis *ndp_axis_new();
 
-/** @fn ndp_axis *ndp_axis_new_from_data(int len, double *val)
+/** @fn ndp_axis *ndp_axis_new_from_data(int len, double *val, int owns_data)
   * @ingroup constructors
   * @brief Constructor for ndp_axis from existing data.
-  * 
+  *
   * @param len Length of the val array
   * @param val Array of vertices that span the axis
-  * 
+  * @param owns_data Flag indicating if the val array is owned by self
+  *
   * @details
-  * Initializes a new ndp_axis instance, sets axis->len to len and
-  * axis->val to val. Note that the function does not copy the array, it
-  * only assigns a pointer to it. Thus, the calling function needs to pass an
-  * allocated copy if the array is (re)used elsewhere. Ndpolator treats the
-  * val array as read-only and will not change it. On destruction, the val
-  * array will be freed.
-  * 
+  * Initializes a new ndp_axis instance, sets axis->len to len and axis->val
+  * to val. Note that the function does not copy the array, it only assigns a
+  * pointer to it. Thus, the calling function needs to determine data
+  * ownership and pass an allocated copy if the array is (re)used elsewhere.
+  * Ndpolator treats the val array as read-only and will not change it. On
+  * destruction, the val array will be freed only if owns_data is set to true.
+  *
   * @return Initialized ndp_axis instance
   */
 
-ndp_axis *ndp_axis_new_from_data(int len, double *val);
+ndp_axis *ndp_axis_new_from_data(int len, double *val, int owns_data);
 
 /** @fn int ndp_axis_free(ndp_axis *axis)
   * @ingroup constructors
@@ -328,14 +330,16 @@ int ndp_query_pts_free(ndp_query_pts *qpts);
   * Ndpolator uses #ndp_table to store all relevant parameters for
   * interpolation and/or extrapolation. It stores the axes that span the
   * interpolation hyperspace (in a #ndp_axes structure), the function values
-  * across the interpolation hyperspace (@p grid and @p kdtree), function value
-  * length (@p vdim), and several private fields that further optimize
+  * across the interpolation hyperspace (grid and kdtree), function value
+  * length (vdim), and several private fields that further optimize
   * interpolation.
   */
+
 typedef struct ndp_table {
     int vdim;               /*!< Vertex dimension (i.e., function value length): 1 for scalars, >1 for arrays */
     ndp_axes *axes;         /*!< ndp_axes instance that defines all axes */
     double *grid;           /*!< Array holding all function values in C-native order */
+    int owns_data;          /*!< Flag indicating if ndp_table owns the grid array */
     struct kdtree *vtree;   /*!< Vertex k-d tree spatial index for nearest neighbor search */
     struct kdtree *hctree;  /*!< Hypercube k-d tree spatial index for nearest neighbor search */
     int nverts;             /*!< @private Number of basic grid points (cartesian product of all basic axes) */
@@ -356,7 +360,7 @@ typedef struct ndp_table {
 
 ndp_table *ndp_table_new();
 
-/** @fn ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid)
+/** @fn ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int owns_data)
   * @ingroup constructors
   * @brief Constructor for ndp_table from existing data.
   *
@@ -364,14 +368,15 @@ ndp_table *ndp_table_new();
   * @param vdim Vertex dimension (function value length)
   * @param grid Flattened array holding all function values, in C-native
   *     order, of size vdim * nverts
+  * @param owns_data Flag indicating if the grid array is owned by self
   *
   * @details
   * Initializes a new ndp_table instance from passed data. Note that the
   * function does not copy the arrays, it only assigns pointers to them. Thus,
-  * the calling function needs to pass allocated copies if the arrays are
-  * (re)used elsewhere. Ndpolator treats all arrays as read-only and it will
-  * not change them. On destruction, the arrays will be freed along with the
-  * ndp_table instance.
+  * the calling function needs to determine data ownership and pass an
+  * allocated copy if the array is (re)used elsewhere. Ndpolator treats all
+  * arrays as read-only and will not change them. On destruction, the grid
+  * array will be freed only if owns_data is set to true.
   *
   * This constructor also initializes a private list of all non-nan vertices
   * and fully defined hypercubes in the grid. It does so by traversing the
@@ -382,7 +387,7 @@ ndp_table *ndp_table_new();
   * @return Initialized ndp_table instance
   */
 
-ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid);
+ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int owns_data);
 
 /** @fn ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObject *py_grid)
   * @ingroup constructors
