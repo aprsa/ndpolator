@@ -1,0 +1,31 @@
+version: 2
+updates:
+    # keep github actions up to date
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+        interval: "monthly"
+        day: "friday"
+        time: "08:00"
+        timezone: "America/New_York"
+      labels: ["deps", "github-actions"]
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "deps(gha):"
+      groups:
+        actions-minors:
+          patterns: ["*"]
+          update-types: ["minor", "patch"]
+
+    # keep pip dependencies up to date
+    - package-ecosystem: "pip"
+      directory: "/"
+      schedule:
+        interval: "monthly"
+        day: "friday"
+        time: "08:00"
+        timezone: "America/New_York"
+      labels: ["deps", "python"]
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "deps(py):"
