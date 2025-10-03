@@ -19,7 +19,7 @@ jobs:
         name: ${{ matrix.os }} python ${{ matrix.python-version }}
         steps:
             - name: checkout ndpolator
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
 
             - name: setup python ${{ matrix.python-version }}
               uses: actions/setup-python@v5
