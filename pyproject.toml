@@ -43,7 +43,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "numpy<2.0.0"
+    "numpy"
 ]
 optional-dependencies = { test = ["pytest"], dev = ["pytest"] }
 
@@ -51,7 +51,7 @@ optional-dependencies = { test = ["pytest"], dev = ["pytest"] }
 repository = "https://github.com/aprsa/ndpolator"
 
 [build-system]
-requires = ["setuptools", "numpy<2.0.0", "wheel"]
+requires = ["setuptools", "numpy", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
