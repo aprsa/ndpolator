@@ -189,7 +189,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
 {
     int debug = 0;
     int min_pos;
-    double cdist;
+    double cdist = 0.0;
     int nearest;
 
     typedef struct {
