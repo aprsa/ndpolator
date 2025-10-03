@@ -43,8 +43,9 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "numpy<2.0.0", "pytest"
+    "numpy<2.0.0"
 ]
+optional-dependencies = { test = ["pytest"], dev = ["pytest"] }
 
 [project.urls]
 repository = "https://github.com/aprsa/ndpolator"
