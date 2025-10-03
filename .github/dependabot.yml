@@ -16,6 +16,9 @@ updates:
         actions-minors:
           patterns: ["*"]
           update-types: ["minor", "patch"]
+        actions-majors:
+          patterns: ["*"]
+          update-types: ["major"]
 
     # keep pip dependencies up to date
     - package-ecosystem: "pip"
@@ -29,3 +32,10 @@ updates:
       open-pull-requests-limit: 10
       commit-message:
         prefix: "deps(py):"
+      groups:
+        pip-minors:
+          patterns: ["*"]
+          update-types: ["minor", "patch"]
+        pip-majors:
+          patterns: ["*"]
+          update-types: ["major"]

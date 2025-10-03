@@ -1,12 +1,11 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/aprsa/ndpolator)
 ![GitHub last commit](https://img.shields.io/github/last-commit/aprsa/ndpolator)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/aprsa/ndpolator)
+![GitHub Pull Requests](https://img.shields.io/github/issues-pr/aprsa/ndpolator)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/aprsa/ndpolator/on_pr.yml)
 ![Documentation](https://img.shields.io/github/actions/workflow/status/aprsa/ndpolator/docbuild.yml?label=docs-build)
-
-<!-- Dependabot badges -->
-![Dependabot updates](https://img.shields.io/dependabot/updates?host=github&repo=aprsa/ndpolator)
-![Dependabot alerts](https://img.shields.io/github/dependabot/alerts/aprsa/ndpolator?label=dependabot%20alerts)
+![Dependabot](https://img.shields.io/badge/dependabot-enabled-025e8c?logo=dependabot)
+![Dependabot PRs](https://img.shields.io/github/issues-pr/aprsa/ndpolator/CI)
 
 # Ndpolator
 
