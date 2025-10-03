@@ -50,6 +50,9 @@ jobs:
                 python-version: ["3.9", "3.13"]
         steps:
             - uses: actions/checkout@v5
+            - uses: actions/setup-python@v5
+              with:
+                python-version: ${{ matrix.python-version }}
             - uses: actions/download-artifact@v5
               with:
                 pattern: cibw-wheels-${{ matrix.os }}-*
@@ -57,7 +60,9 @@ jobs:
                 merge-multiple: true
             - name: Install wheel and test
               run: |
-                pip install dist/*.whl
+                python -m pip install --upgrade pip
+                python -m pip install pytest
+                python -m pip install dist/*.whl
                 pytest tests/
 
     publish-to-pypi:
