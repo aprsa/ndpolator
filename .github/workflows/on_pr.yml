@@ -32,7 +32,7 @@ jobs:
                     pyproject.toml
 
             - name: upgrade pip tooling
-              run: pip install --upgrade pip setuptools wheel
+              run: pip install --upgrade pip setuptools wheel pytest build
 
             - name: install ndpolator
               run: pip install .
