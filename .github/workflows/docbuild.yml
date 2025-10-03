@@ -40,7 +40,7 @@ jobs:
             - name: run doxygen
               run: doxygen docs/Doxyfile
             - name: setup github pages
-              uses: actions/configure-pages@v4
+              uses: actions/configure-pages@v5
             - name: upload docs
               uses: actions/upload-pages-artifact@v3
               with:
