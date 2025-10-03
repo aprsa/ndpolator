@@ -25,7 +25,7 @@ jobs:
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-                os: ${{ github.event_name == 'pull_request' && '[ubuntu-latest]' || '[ubuntu-24.04, macos-14, macos-15]' }}
+                os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-24.04", "macos-14", "macos-15"]') }}
         steps:
             - name: Checkout the sources
               uses: actions/checkout@v5
