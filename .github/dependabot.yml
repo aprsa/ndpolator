@@ -8,7 +8,7 @@ updates:
         day: "friday"
         time: "08:00"
         timezone: "America/New_York"
-      labels: ["deps", "github-actions"]
+      labels: ["dependencies", "CI"]
       open-pull-requests-limit: 10
       commit-message:
         prefix: "deps(gha):"
@@ -25,7 +25,7 @@ updates:
         day: "friday"
         time: "08:00"
         timezone: "America/New_York"
-      labels: ["deps", "python"]
+      labels: ["dependencies"]
       open-pull-requests-limit: 10
       commit-message:
         prefix: "deps(py):"

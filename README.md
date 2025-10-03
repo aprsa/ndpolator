@@ -4,6 +4,10 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/aprsa/ndpolator/on_pr.yml)
 ![Documentation](https://img.shields.io/github/actions/workflow/status/aprsa/ndpolator/docbuild.yml?label=docs-build)
 
+<!-- Dependabot badges -->
+![Dependabot updates](https://img.shields.io/dependabot/updates?host=github&repo=aprsa/ndpolator)
+![Dependabot alerts](https://img.shields.io/github/dependabot/alerts/aprsa/ndpolator?label=dependabot%20alerts)
+
 # Ndpolator
 
 Fast, n-dimensional linear interpolation and extrapolation on sparse grids.
