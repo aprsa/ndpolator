@@ -51,7 +51,7 @@ jobs:
             id-token: write
         steps:
             - name: Gather sdist tarball and wheels
-              uses: actions/download-artifact@v5
+              uses: actions/download-artifact@v6
               with:
                 pattern: cibw-*
                 path: dist
