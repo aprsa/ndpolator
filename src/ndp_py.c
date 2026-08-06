@@ -24,7 +24,7 @@ void _ainfo(PyArrayObject *array, int print_data)
     npy_intp *dims, *shape, *strides;
 
     ndim = PyArray_NDIM(array);
-    size = PyArray_SIZE(array);
+    size = (int) PyArray_SIZE(array);
 
     printf("array->nd = %d\n", ndim);
     printf("array->flags = %d\n", PyArray_FLAGS(array));
@@ -92,14 +92,14 @@ ndp_axes *ndp_axes_new_from_python(PyObject *py_axes, int nbasic)
 {
     ndp_axes *axes;
 
-    int naxes = PyTuple_Size(py_axes);
+    int naxes = (int) PyTuple_Size(py_axes);
     ndp_axis **axis = malloc(naxes*sizeof(*axis));
 
     if (nbasic == 0) nbasic = naxes;
 
     for (int i = 0; i < naxes; i++) {
         PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        int py_axis_len = PyArray_DIM(py_axis, 0);
+        int py_axis_len = (int) PyArray_DIM(py_axis, 0);
         double *py_axis_data = (double *) PyArray_DATA(py_axis);
         axis[i] = ndp_axis_new_from_data(py_axis_len, py_axis_data, /* owns_data = */ 0);
     }
@@ -114,7 +114,7 @@ ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObjec
     ndp_axes *axes = ndp_axes_new_from_python(py_axes, nbasic);
 
     int ndims = PyArray_NDIM(py_grid);
-    int vdim = PyArray_DIM(py_grid, ndims-1);
+    int vdim = (int) PyArray_DIM(py_grid, ndims-1);
 
     /* work around the misbehaved array: */
     PyArrayObject *py_behaved_grid = (PyArrayObject *) PyArray_FROM_OTF((PyObject *) py_grid, NPY_DOUBLE, NPY_ARRAY_CARRAY);
@@ -148,8 +148,8 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi", kwlist, &py_axes, &py_query_pts, &nbasic))  /* all borrowed references */
         return NULL;
 
-    naxes = PyTuple_Size(py_axes);
-    nelems = PyArray_DIM(py_query_pts, 0);
+    naxes = (int) PyTuple_Size(py_axes);
+    nelems = (int) PyArray_DIM(py_query_pts, 0);
     qpts = (double *) PyArray_DATA(py_query_pts);
 
     query_pts_shape = PyArray_SHAPE(py_query_pts);
@@ -158,7 +158,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     for (int i = 0; i < naxes; i++) {
         PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        axis[i] = ndp_axis_new_from_data(PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
+        axis[i] = ndp_axis_new_from_data((int) PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
     }
 
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
@@ -221,12 +221,12 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
     }
     else if (py_query_pts && py_axes && py_grid) {
         owns_table = 1;
-        table = ndp_table_new_from_python(py_axes, nbasic != 0 ? nbasic : PyArray_DIM(py_grid, 0), py_grid);
+        table = ndp_table_new_from_python(py_axes, nbasic != 0 ? nbasic : (int) PyArray_DIM(py_grid, 0), py_grid);
     }
     else
         return NULL;
 
-    int nelems = PyArray_DIM(py_query_pts, 0);
+    int nelems = (int) PyArray_DIM(py_query_pts, 0);
     double *qpts = (double *) PyArray_DATA(py_query_pts);
     ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
     double *distances = malloc(nelems * sizeof(*distances));
@@ -272,8 +272,8 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOO|i", kwlist, &py_normed_query_pts, &py_indices, &py_axes, &py_flags, &py_grid, &nbasic))
         return NULL;
 
-    nelems = PyArray_DIM(py_indices, 0);
-    naxes = PyArray_DIM(py_indices, 1);
+    nelems = (int) PyArray_DIM(py_indices, 0);
+    naxes = (int) PyArray_DIM(py_indices, 1);
     if (nbasic == 0) nbasic = naxes;
 
     normed_query_pts = (double *) PyArray_DATA(py_normed_query_pts);
@@ -289,7 +289,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     hypercubes = ndp_find_hypercubes(qpts, table);
 
     for (int i = 0; i < nelems; i++) {
-        npy_intp shape[hypercubes[i]->dim+1];
+        npy_intp *shape = malloc((hypercubes[i]->dim+1)*sizeof(*shape));
         PyObject *py_hypercube;
         int j;
 
@@ -300,6 +300,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
         py_hypercube = PyArray_SimpleNewFromData(hypercubes[i]->dim+1, shape, NPY_DOUBLE, hypercubes[i]->v);
         PyArray_ENABLEFLAGS((PyArrayObject *) py_hypercube, NPY_ARRAY_OWNDATA);
         PyTuple_SetItem(py_hypercubes, i, py_hypercube);
+        free(shape);
     }
 
     for (int i = 0; i < nelems; i++) {
@@ -373,7 +374,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    int nelems = PyArray_DIM(py_query_pts, 0);
+    int nelems = (int) PyArray_DIM(py_query_pts, 0);
     double *qpts = PyArray_DATA(py_query_pts);
 
     ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
