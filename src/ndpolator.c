@@ -221,7 +221,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     }
 
     if (search_algorithm == NDP_SEARCH_KDTREE) {
-        double query_coords[table->axes->nbasic];
+        double *query_coords = malloc(table->axes->nbasic * sizeof(*query_coords));
         for (int j = 0; j < table->axes->nbasic; j++)
             query_coords[j] = elem_index[j] + normed_elem[j] - 1.0;
 
@@ -238,7 +238,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
             
             /* Add associated axes: */
             for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-                coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+                coords[j] = (int) max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
             }
             
             /* Calculate squared distance */
@@ -267,14 +267,19 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
             
             kd_res_free(result);
             free(dists);
+            free(query_coords);
             return coords;
         }
         
         kd_res_free(result);
+        free(query_coords);
         /* Fall through to linear search if kdtree query failed */
     }
 
     /* Fallback to linear search */
+    /* scratch buffer reused across iterations; size is loop-invariant: */
+    int *temp_coords = malloc(table->axes->len * sizeof(*temp_coords));
+
     /* loop over all basic vertices: */
     for (int i = 0; i < table->nverts; i++) {
         dists[i].idx = i;
@@ -286,14 +291,13 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
         }
 
         /* Convert vertex index to grid coordinates (basic axes) */
-        int temp_coords[table->axes->len];
         for (int j = 0; j < table->axes->nbasic; j++) {
             temp_coords[j] = i / (table->axes->cplen[j] / table->axes->cplen[table->axes->nbasic-1]) % table->axes->axis[j]->len;
         }
         
         /* Add associated axes coordinates (nearest grid point to query) */
         for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-            temp_coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+            temp_coords[j] = (int) max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
         }
 
         /* Calculate squared distance */
@@ -339,7 +343,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     }
 
     for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-        coords[j] = max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+        coords[j] = (int) max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
         if (debug)
             printf("%d ", coords[j]);
     }
@@ -347,6 +351,7 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     if (debug)
         printf("\b]\n");
 
+    free(temp_coords);
     free(dists);
     return coords;
 }
@@ -422,7 +427,7 @@ ndp_hypercube **ndp_find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
     double *hc_vertices;
 
     ndp_axes *axes = table->axes;
-    int cidx[axes->len];
+    int *cidx = malloc(axes->len * sizeof(*cidx));
 
     int nelems = qpts->nelems;
     int *indices = qpts->indices;
@@ -504,6 +509,8 @@ ndp_hypercube **ndp_find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
         hypercubes[i] = hypercube;
     }
 
+    free(cidx);
+
     return hypercubes;
 }
 
@@ -512,8 +519,12 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
     int debug = 0;
 
     ndp_query *query = ndp_query_new();
-    double reduced[table->axes->len];
+    double *reduced = malloc(table->axes->len * sizeof(*reduced));
     ndp_hypercube *hypercube;
+
+    /* scratch buffer for hypercube corner coordinates, reused across query
+     * points in the LINEAR extrapolation branch below; size is loop-invariant: */
+    int *cidx = malloc(table->axes->len * sizeof(*cidx));
 
     query->nelems = qpts->nelems;
     query->extrapolation_method = extrapolation_method;
@@ -570,7 +581,6 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                     double *normed_elem = qpts->normed + i * table->axes->len;
                     int *elem_index = qpts->indices + i * table->axes->len;
                     int *elem_flag = qpts->flags + i * table->axes->len;
-                    int cidx[table->axes->len];  /* hypercube corner (given by table->axes->len coordinates) */
                     int pos;
 
                     /* superior corner coordinates of the nearest fully defined hypercube: */
@@ -636,6 +646,8 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
                 break;
                 default:
                     /* invalid extrapolation method */
+                    free(cidx);
+                    free(reduced);
                     return NULL;
                 break;
             }
@@ -666,6 +678,9 @@ ndp_query *ndpolate(ndp_query_pts *qpts, ndp_table *table, ndp_extrapolation_met
         c_ndpolate(hypercube->dim, hypercube->vdim, reduced, hypercube->v);
         memcpy(query->interps + i*table->vdim, hypercube->v, table->vdim * sizeof(*(query->interps)));
     }
+
+    free(cidx);
+    free(reduced);
 
     return query;
 }

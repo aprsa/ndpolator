@@ -59,7 +59,7 @@ ndp_axes *ndp_axes_new_from_data(int naxes, int nbasic, ndp_axis **axis)
     /* add a cumulative product array: */
     axes->cplen = malloc(naxes*sizeof(*(axes->cplen)));
     for (int i = 0; i < naxes; i++) {
-        axes->cplen[i] = 1.0;
+        axes->cplen[i] = 1;
         for (int j = i+1; j < naxes; j++)
             axes->cplen[i] *= axes->axis[j]->len;
     }
@@ -161,7 +161,8 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int o
     int debug = 0;
     int pos;
     int cpsum = 0;
-    int ith_corner[axes->nbasic], cidx[axes->nbasic];
+    int *ith_corner = malloc(axes->nbasic * sizeof(*ith_corner));
+    int *cidx = malloc(axes->nbasic * sizeof(*cidx));
 
     ndp_table *table = ndp_table_new();
 
@@ -264,6 +265,9 @@ ndp_table *ndp_table_new_from_data(ndp_axes *axes, int vdim, double *grid, int o
                 printf("%d fully defined hypercubes found.\n", sum);
         }
     }
+
+    free(ith_corner);
+    free(cidx);
 
     return table;
 }
