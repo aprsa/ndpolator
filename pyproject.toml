@@ -51,7 +51,7 @@ optional-dependencies = { test = ["pytest"], dev = ["pytest"] }
 repository = "https://github.com/aprsa/ndpolator"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = ["setuptools>=77", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -62,4 +62,7 @@ packages = [
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
+    "-ra",
+    "--durations=10",
 ]
+faulthandler_timeout = 300

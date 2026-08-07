@@ -24,8 +24,9 @@ jobs:
         name: Build wheels on ${{ matrix.os }}
         runs-on: ${{ matrix.os }}
         strategy:
+            fail-fast: false
             matrix:
-                os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-24.04", "macos-14", "macos-15"]') }}
+                os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest", "windows-2022"]') || fromJSON('["ubuntu-24.04", "macos-14", "windows-2022"]') }}
         steps:
             - name: Checkout the sources
               uses: actions/checkout@v5
@@ -34,13 +35,16 @@ jobs:
               env:
                 CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
                 CIBW_SKIP: "*-win32 *-manylinux_i686"
+                CIBW_ARCHS_MACOS: "x86_64 arm64"
+                CIBW_TEST_REQUIRES: "pytest"
+                CIBW_TEST_COMMAND: "pytest {project}/tests"
             - uses: actions/upload-artifact@v4
               with:
                 name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
                 path: ./wheelhouse/*.whl
 
     publish-to-pypi:
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'release'
         needs: [build-sdist, build-wheels]
         name: Publish release to PyPI
         runs-on: ubuntu-latest
