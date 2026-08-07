@@ -14,9 +14,17 @@
 #include "ndp_types.h"
 
 /* Math utility macros */
+#ifndef min
 #define min(a,b) (((a)<(b))?(a):(b))
+#endif
+
+#ifndef max
 #define max(a,b) (((a)>(b))?(a):(b))
+#endif
+
+#ifndef sign
 #define sign(a) ( ( (a) < 0 )  ?  -1   : ( (a) > 0 ) )
+#endif
 
 int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int *flag)
 {

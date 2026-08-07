@@ -14,7 +14,7 @@ class BuildExtFlags(build_ext):
                 ext.extra_compile_args = ['/O2', '/WX']
                 ext.extra_link_args = []
             else:
-                ext.extra_compile_args = ['-O3', '-Wall', '-Wextra', '-Werror']
+                ext.extra_compile_args = ['-O3', '-Wall', '-Werror']
                 ext.extra_link_args = ['-lm', '-pthread']
         super().build_extensions()
 
