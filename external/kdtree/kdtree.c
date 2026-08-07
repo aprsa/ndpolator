@@ -36,7 +36,7 @@ OF SUCH DAMAGE.
 #include <math.h>
 #include "kdtree.h"
 
-#if defined(WIN32) || defined(__WIN32__)
+#if defined(WIN32) || defined(__WIN32__) || defined(_WIN32)
 #include <malloc.h>
 #endif
 
@@ -655,7 +655,7 @@ void *kd_res_itemf(struct kdres *rset, float *pos)
 		if(pos) {
 			int i;
 			for(i=0; i<rset->tree->dim; i++) {
-				pos[i] = rset->riter->item->pos[i];
+				pos[i] = (float) rset->riter->item->pos[i];
 			}
 		}
 		return rset->riter->item->data;
@@ -677,9 +677,9 @@ void *kd_res_item3(struct kdres *rset, double *x, double *y, double *z)
 void *kd_res_item3f(struct kdres *rset, float *x, float *y, float *z)
 {
 	if(rset->riter) {
-		if(x) *x = rset->riter->item->pos[0];
-		if(y) *y = rset->riter->item->pos[1];
-		if(z) *z = rset->riter->item->pos[2];
+		if(x) *x = (float) rset->riter->item->pos[0];
+		if(y) *y = (float) rset->riter->item->pos[1];
+		if(z) *z = (float) rset->riter->item->pos[2];
 		return rset->riter->item->data;
 	}
 	return 0;

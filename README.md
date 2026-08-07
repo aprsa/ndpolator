@@ -15,6 +15,16 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 # Recent changes
 
+## ndpolator 1.3.1
+
+* replaces all C99 code with the ANSI standard so that Microsoft C compiler can build the code.
+
+* fixes compiler flag inconsistency across different platform compilers.
+
+* fixes pip self-upgrade on Windows.
+
+* sets the minimal setuptools version to 77 to ensure support for license reference.
+
 ## ndpolator 1.3.0
 
 * implements kd-tree lookup of nearest vertices and/or hypercubes. The search speed for kd-trees is O(logN), where N is the number of vertices; compared to the previous linear search that has O(N) dependence, this provides a significant speed increase in extrapolation. For example, for a 3D 50x50x50 grid, the speed-up is ~500.

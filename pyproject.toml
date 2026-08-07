@@ -11,7 +11,7 @@
 
 [project]
 name = "ndpolator"
-version = "1.3.0"
+version = "1.3.1"
 description = "ndpolator: fast, n-dimensional linear interpolation and extrapolation on sparse grids"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -51,7 +51,7 @@ optional-dependencies = { test = ["pytest"], dev = ["pytest"] }
 repository = "https://github.com/aprsa/ndpolator"
 
 [build-system]
-requires = ["setuptools", "numpy", "wheel"]
+requires = ["setuptools>=77", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
@@ -62,4 +62,7 @@ packages = [
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
+    "-ra",
+    "--durations=10",
 ]
+faulthandler_timeout = 300
