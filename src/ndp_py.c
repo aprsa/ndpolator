@@ -94,14 +94,14 @@ void _ainfo(PyArrayObject *array, int print_data)
  * These functions create ndpolator data structures from Python objects
  * ==================================================================== */
 
-ndp_py_table *ndp_py_table_new(PyObject *py_axes, int nbasic, PyObject *py_grid)
+/* Returns a new tuple holding a C-contiguous NPY_DOUBLE version of every
+ * axis in py_axes. PyArray_FROM_OTF() returns the array itself (with a new
+ * reference) when it already satisfies the requirements and a converted copy
+ * otherwise. Returns NULL with a Python exception set on failure. */
+static PyObject *ndp_py_convert_axes(PyObject *py_axes)
 {
-    ndp_py_table *pytable;
-    ndp_axis **axis;
-    ndp_axes *axes;
-    PyObject *converted_axes, *converted_grid;
-    PyArrayObject *grid_array;
-    int naxes, ndims, vdim;
+    PyObject *converted_axes;
+    int naxes;
 
     if (!PyTuple_Check(py_axes)) {
         PyErr_SetString(PyExc_TypeError, "axes must be a tuple of ndarrays");
@@ -109,13 +109,6 @@ ndp_py_table *ndp_py_table_new(PyObject *py_axes, int nbasic, PyObject *py_grid)
     }
 
     naxes = (int) PyTuple_GET_SIZE(py_axes);
-    if (nbasic == 0) nbasic = naxes;
-
-    /* The table borrows the array buffers, so hold a reference to a
-     * C-contiguous NPY_DOUBLE version of every axis and of the grid for as
-     * long as the table lives. PyArray_FROM_OTF() returns the array itself
-     * (with a new reference) when it already satisfies the requirements and
-     * a converted copy otherwise. */
     converted_axes = PyTuple_New(naxes);
     if (!converted_axes)
         return NULL;
@@ -129,25 +122,53 @@ ndp_py_table *ndp_py_table_new(PyObject *py_axes, int nbasic, PyObject *py_grid)
         PyTuple_SET_ITEM(converted_axes, i, py_axis);  /* steals the reference */
     }
 
+    return converted_axes;
+}
+
+/* Builds an ndp_axes instance on top of the data buffers of converted_axes,
+ * a tuple as returned by ndp_py_convert_axes(). The ndp_axes borrows the
+ * buffers, so converted_axes must stay alive for as long as it is in use. */
+static ndp_axes *ndp_py_axes_from_converted(PyObject *converted_axes, int nbasic)
+{
+    int naxes = (int) PyTuple_GET_SIZE(converted_axes);
+    ndp_axis **axis = malloc(naxes * sizeof(*axis));
+
+    if (nbasic == 0) nbasic = naxes;
+
+    for (int i = 0; i < naxes; i++) {
+        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GET_ITEM(converted_axes, i);
+        axis[i] = ndp_axis_new_from_data((int) PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
+    }
+
+    return ndp_axes_new_from_data(naxes, nbasic, axis);
+}
+
+ndp_py_table *ndp_py_table_new(PyObject *py_axes, int nbasic, PyObject *py_grid)
+{
+    ndp_py_table *pytable;
+    PyObject *converted_axes, *converted_grid;
+    PyArrayObject *grid_array;
+    int ndims, vdim;
+
+    /* The table borrows the array buffers, so hold a reference to a
+     * C-contiguous NPY_DOUBLE version of every axis and of the grid for as
+     * long as the table lives. */
+    converted_axes = ndp_py_convert_axes(py_axes);
+    if (!converted_axes)
+        return NULL;
+
     converted_grid = PyArray_FROM_OTF(py_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     if (!converted_grid) {
         Py_DECREF(converted_axes);
         return NULL;
     }
 
-    axis = malloc(naxes * sizeof(*axis));
-    for (int i = 0; i < naxes; i++) {
-        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GET_ITEM(converted_axes, i);
-        axis[i] = ndp_axis_new_from_data((int) PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
-    }
-    axes = ndp_axes_new_from_data(naxes, nbasic, axis);
-
     grid_array = (PyArrayObject *) converted_grid;
     ndims = PyArray_NDIM(grid_array);
     vdim = (int) PyArray_DIM(grid_array, ndims-1);
 
     pytable = malloc(sizeof(*pytable));
-    pytable->table = ndp_table_new_from_data(axes, vdim, (double *) PyArray_DATA(grid_array), /* owns_data = */ 0);
+    pytable->table = ndp_table_new_from_data(ndp_py_axes_from_converted(converted_axes, nbasic), vdim, (double *) PyArray_DATA(grid_array), /* owns_data = */ 0);
     pytable->py_axes = converted_axes;
     pytable->py_grid = converted_grid;
 
@@ -172,16 +193,16 @@ void ndp_py_table_free(ndp_py_table *pytable)
 /* Python wrapper to the ndp_query_pts_import() function */
 static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *py_axes, *py_indices, *py_flags, *py_normed_query_pts, *py_combo;
-    PyArrayObject *py_query_pts;
+    PyObject *py_axes, *py_query_pts, *py_indices, *py_flags, *py_normed_query_pts, *py_combo;
+    PyObject *converted_axes, *converted_query_pts;
+    PyArrayObject *query_pts_array;
 
     npy_intp *query_pts_shape;
 
-    int naxes, nelems, nbasic;
+    int nelems, nbasic;
 
     double *qpts;
 
-    ndp_axis **axis;
     ndp_axes *axes;
     ndp_query_pts *query_pts;
 
@@ -190,24 +211,30 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOi", kwlist, &py_axes, &py_query_pts, &nbasic))  /* all borrowed references */
         return NULL;
 
-    naxes = (int) PyTuple_Size(py_axes);
-    nelems = (int) PyArray_DIM(py_query_pts, 0);
-    qpts = (double *) PyArray_DATA(py_query_pts);
+    /* The C code reads axes and query points as C-contiguous double buffers,
+     * so convert them if necessary and hold references to the converted
+     * arrays for the duration of this call: */
+    converted_axes = ndp_py_convert_axes(py_axes);
+    if (!converted_axes)
+        return NULL;
 
-    query_pts_shape = PyArray_SHAPE(py_query_pts);
-
-    axis = malloc(naxes*sizeof(*axis));
-
-    for (int i = 0; i < naxes; i++) {
-        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        axis[i] = ndp_axis_new_from_data((int) PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
+    converted_query_pts = PyArray_FROM_OTF(py_query_pts, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    if (!converted_query_pts) {
+        Py_DECREF(converted_axes);
+        return NULL;
     }
 
-    axes = ndp_axes_new_from_data(naxes, nbasic, axis);
+    query_pts_array = (PyArrayObject *) converted_query_pts;
+    nelems = (int) PyArray_DIM(query_pts_array, 0);
+    qpts = (double *) PyArray_DATA(query_pts_array);
+    query_pts_shape = PyArray_SHAPE(query_pts_array);
+
+    axes = ndp_py_axes_from_converted(converted_axes, nbasic);
     query_pts = ndp_query_pts_import(nelems, qpts, axes);
 
-    /* clean up: */
+    /* clean up; the axes buffers are not needed past this point: */
     ndp_axes_free(axes);
+    Py_DECREF(converted_axes);
 
     py_indices = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_INT, query_pts->indices);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_indices, NPY_ARRAY_OWNDATA);
@@ -217,6 +244,9 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 
     py_normed_query_pts = PyArray_SimpleNewFromData(2, query_pts_shape, NPY_DOUBLE, query_pts->normed);
     PyArray_ENABLEFLAGS((PyArrayObject *) py_normed_query_pts, NPY_ARRAY_OWNDATA);
+
+    /* the output arrays have copied the shape, so the query points can go: */
+    Py_DECREF(converted_query_pts);
 
     /* indices, flags, and normed are now owned by Python, so NULLify them: */
     query_pts->indices = NULL;
