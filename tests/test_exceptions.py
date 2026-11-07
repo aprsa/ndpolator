@@ -37,3 +37,36 @@ def test_wrapper_typing():
 
     grid = np.random.uniform(low=0, high=1, size=(3, 3, 1))
     ndp.register(name=name, associated_axes=None, grid=grid)
+
+
+def test_missing_table_arguments_raise_value_error():
+    # the C extension must raise a proper exception, not return NULL silently
+    # (which python would report as SystemError), when it is given neither a
+    # valid capsule nor the axes and grid needed to build a table:
+    import cndpolator
+
+    query_pts = np.array([[0.5, 0.5]])
+    axes = (np.array([0., 1.]), np.array([0., 1.]))
+    grid = np.zeros((2, 2, 1))
+
+    with pytest.raises(ValueError):
+        cndpolator.ndpolate(query_pts=query_pts)
+    with pytest.raises(ValueError):
+        cndpolator.ndpolate(query_pts=query_pts, axes=axes)
+    with pytest.raises(ValueError):
+        cndpolator.ndpolate(capsule=object(), query_pts=query_pts)
+    with pytest.raises(ValueError):
+        cndpolator.distance(query_pts, object())
+    with pytest.raises(TypeError):
+        cndpolator.ndpolate(query_pts=query_pts, axes=list(axes), grid=grid)
+
+
+def test_enums_are_registered():
+    import cndpolator
+
+    assert [m.value for m in cndpolator.ExtrapolationMethod] == [0, 1, 2]
+    assert cndpolator.ExtrapolationMethod.NONE == 0
+    assert cndpolator.ExtrapolationMethod.NEAREST == 1
+    assert cndpolator.ExtrapolationMethod.LINEAR == 2
+    assert cndpolator.SearchAlgorithm.KDTREE == 0
+    assert cndpolator.SearchAlgorithm.LINEAR == 1

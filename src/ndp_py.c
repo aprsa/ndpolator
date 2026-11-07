@@ -296,8 +296,10 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
             return NULL;
         table = pytable->table;
     }
-    else
+    else {
+        PyErr_SetString(PyExc_ValueError, "either a valid capsule or query_pts, axes and grid must be provided");
         return NULL;
+    }
 
     int nelems = (int) PyArray_DIM(py_query_pts, 0);
     double *qpts = (double *) PyArray_DATA(py_query_pts);
@@ -405,7 +407,7 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
 
     _ainfo(array, print_data);
 
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 /* Destructor for PyCapsule containing ndp_py_table */
@@ -453,6 +455,7 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
         }
     }
     else {
+        PyErr_SetString(PyExc_ValueError, "either a valid capsule or query_pts, axes and grid must be provided");
         return NULL;
     }
     table = pytable->table;
@@ -492,38 +495,80 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     return py_rv;
 }
 
-/* Helper function to transfer C enums to Python enums */
-void _register_enum(PyObject *self, const char *enum_name, PyObject *py_enum)
+/* Adds a (name, value) member to the dictionary an enum is built from.
+ * Returns 0 on success and -1 with a Python exception set on failure. */
+static int _add_enum_member(PyObject *py_enum, const char *name, long value)
 {
-    PyObject *py_enum_class = NULL;
+    PyObject *py_value = PyLong_FromLong(value);
+    int rv;
+
+    if (!py_value)
+        return -1;
+
+    rv = PyDict_SetItemString(py_enum, name, py_value);  /* takes its own reference */
+    Py_DECREF(py_value);
+
+    return rv;
+}
+
+/* Helper function to transfer C enums to Python enums. Steals the reference
+ * to py_enum. Returns 0 on success and -1 with a Python exception set on
+ * failure. */
+static int _register_enum(PyObject *self, const char *enum_name, PyObject *py_enum)
+{
+    PyObject *py_enum_class;
     PyObject *py_enum_module = PyImport_ImportModule("enum");
-    if (!py_enum_module)
-        Py_CLEAR(py_enum);
+
+    if (!py_enum_module) {
+        Py_DECREF(py_enum);
+        return -1;
+    }
 
     py_enum_class = PyObject_CallMethod(py_enum_module, "IntEnum", "sO", enum_name, py_enum);
 
-    Py_CLEAR(py_enum);
-    Py_CLEAR(py_enum_module);
+    Py_DECREF(py_enum);
+    Py_DECREF(py_enum_module);
 
-    if (py_enum_class && PyModule_AddObject(self, enum_name, py_enum_class) < 0)
-        Py_CLEAR(py_enum_class);
+    if (!py_enum_class)
+        return -1;
+
+    if (PyModule_AddObject(self, enum_name, py_enum_class) < 0) {
+        Py_DECREF(py_enum_class);  /* PyModule_AddObject steals the reference only on success */
+        return -1;
+    }
+
+    return 0;
 }
 
-/* Translates and registers all C-side enumerated types into Python */
+/* Translates and registers all C-side enumerated types into Python.
+ * Returns NDP_SUCCESS on success and -1 with a Python exception set on
+ * failure. */
 int ndp_register_enums(PyObject *self)
 {
     PyObject *py_enum;
 
     py_enum = PyDict_New();
-    PyDict_SetItemString(py_enum, "NONE", PyLong_FromLong(NDP_METHOD_NONE));
-    PyDict_SetItemString(py_enum, "NEAREST", PyLong_FromLong(NDP_METHOD_NEAREST));
-    PyDict_SetItemString(py_enum, "LINEAR", PyLong_FromLong(NDP_METHOD_LINEAR));
-    _register_enum(self, "ExtrapolationMethod", py_enum);
+    if (!py_enum)
+        return -1;
+    if (_add_enum_member(py_enum, "NONE", NDP_METHOD_NONE) < 0 ||
+        _add_enum_member(py_enum, "NEAREST", NDP_METHOD_NEAREST) < 0 ||
+        _add_enum_member(py_enum, "LINEAR", NDP_METHOD_LINEAR) < 0) {
+        Py_DECREF(py_enum);
+        return -1;
+    }
+    if (_register_enum(self, "ExtrapolationMethod", py_enum) < 0)
+        return -1;
 
     py_enum = PyDict_New();
-    PyDict_SetItemString(py_enum, "LINEAR", PyLong_FromLong(NDP_SEARCH_LINEAR));
-    PyDict_SetItemString(py_enum, "KDTREE", PyLong_FromLong(NDP_SEARCH_KDTREE));
-    _register_enum(self, "SearchAlgorithm", py_enum);
+    if (!py_enum)
+        return -1;
+    if (_add_enum_member(py_enum, "LINEAR", NDP_SEARCH_LINEAR) < 0 ||
+        _add_enum_member(py_enum, "KDTREE", NDP_SEARCH_KDTREE) < 0) {
+        Py_DECREF(py_enum);
+        return -1;
+    }
+    if (_register_enum(self, "SearchAlgorithm", py_enum) < 0)
+        return -1;
 
     return NDP_SUCCESS;
 }
@@ -555,6 +600,11 @@ PyMODINIT_FUNC PyInit_cndpolator(void)
     PyObject *module;
     import_array();
     module = PyModule_Create(&cndpolator_module);
-    ndp_register_enums(module);
+    if (!module)
+        return NULL;
+    if (ndp_register_enums(module) < 0) {
+        Py_DECREF(module);
+        return NULL;
+    }
     return module;
 }
