@@ -15,6 +15,16 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 # Recent changes
 
+## ndpolator 1.3.2
+
+* raises minimal python version to 3.10 (3.9 reached EOL in Oct 2025).
+
+* fixes several reference leaks, one of them consequential for large tables, that could lead to an out-of-memory situation.
+
+* axes with integer values can now be safely used with ndpolator.
+
+* updates CI and build workflows for github, including 3.14 wheels.
+
 ## ndpolator 1.3.1
 
 * replaces all C99 code with the ANSI standard so that Microsoft C compiler can build the code.
