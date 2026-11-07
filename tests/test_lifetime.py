@@ -103,6 +103,42 @@ def test_converted_grid_is_owned_by_the_capsule(grid):
     assert ndp.ndpolate('t', QUERY_PT)['interps'][0, 0] == pytest.approx(EXPECTED)
 
 
+def test_find_converts_axes_and_query_pts():
+    # import_query_pts() must accept the same inputs as ndpolate(): integer or
+    # non-contiguous axes and query points are converted rather than reinterpreted.
+    float_axes = (np.array([0.0, 1.0, 2.0]), np.array([0.0, 1.0, 2.0]))
+    int_axes = (np.array([0, 1, 2]), np.array([0, 1, 2]))
+    strided_axes = (np.array([0.0, 9.0, 1.0, 9.0, 2.0])[::2], np.array([0.0, 9.0, 1.0, 9.0, 2.0])[::2])
+    grid = np.arange(9, dtype=float).reshape(3, 3, 1)
+
+    float_qpts = np.array([[0.5, 1.5], [1.0, 1.0], [2.5, -0.5]])
+    int_qpts = np.array([[1, 1]])
+
+    reference = ndpolator.Ndpolator(float_axes)
+    reference.register('t', None, grid)
+    expected = reference.import_query_pts('t', float_qpts)
+
+    for axes in (int_axes, strided_axes):
+        ndp = ndpolator.Ndpolator(axes)
+        ndp.register('t', None, grid)
+        for got, want in zip(ndp.import_query_pts('t', float_qpts), expected):
+            np.testing.assert_array_equal(got, want)
+
+    expected_int = reference.import_query_pts('t', float_qpts[1:2])
+    for got, want in zip(reference.import_query_pts('t', int_qpts), expected_int):
+        np.testing.assert_array_equal(got, want)
+
+
+def test_find_does_not_leak_references():
+    axes = (np.array([0.0, 1.0, 2.0]), np.array([0.0, 1.0, 2.0]))
+    ndp = ndpolator.Ndpolator(axes)
+    ndp.register('t', None, np.arange(9, dtype=float).reshape(3, 3, 1))
+    before = tuple(sys.getrefcount(axis) for axis in axes) + (sys.getrefcount(QUERY_PT),)
+    for _ in range(10):
+        ndp.import_query_pts('t', QUERY_PT)
+    assert tuple(sys.getrefcount(axis) for axis in axes) + (sys.getrefcount(QUERY_PT),) == before
+
+
 def test_integer_axes_are_converted():
     # axes are converted to float64 the same way the grid is:
     ndp = ndpolator.Ndpolator((np.array([0, 1, 2]), np.array([0, 1, 2])))
