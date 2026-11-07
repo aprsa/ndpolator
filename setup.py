@@ -1,6 +1,19 @@
+import os
+
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 import numpy
+
+
+def warnings_are_errors() -> bool:
+    """Whether to treat compiler warnings as errors (-Werror, /WX).
+
+    This is opt-in via the NDPOLATOR_WERROR environment variable. CI sets it
+    so that new warnings are caught early; end users building from the sdist
+    with a newer compiler or newer numpy headers should not have their
+    installation fail because of a warning we have not seen yet.
+    """
+    return os.environ.get('NDPOLATOR_WERROR', '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 class BuildExtFlags(build_ext):
@@ -9,12 +22,13 @@ class BuildExtFlags(build_ext):
     def build_extensions(self):
         # we need to fiddle with compiler flags based on the compiler used (gcc, clang, msvc)
         compiler_type = self.compiler.compiler_type
+        werror = warnings_are_errors()
         for ext in self.extensions:
             if compiler_type == 'msvc':
-                ext.extra_compile_args = ['/O2', '/WX']
+                ext.extra_compile_args = ['/O2'] + (['/WX'] if werror else [])
                 ext.extra_link_args = []
             else:
-                ext.extra_compile_args = ['-O3', '-Wall', '-Werror']
+                ext.extra_compile_args = ['-O3', '-Wall'] + (['-Werror'] if werror else [])
                 ext.extra_link_args = ['-lm', '-pthread']
         super().build_extensions()
 

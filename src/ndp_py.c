@@ -4,18 +4,24 @@
  * The core interpolation functionality is in ndpolator.c.
  */
 
+/* Required by numpy C-API. It defines a unique symbol to be used in other
+ * C source files and header files. */
+#define PY_ARRAY_UNIQUE_SYMBOL cndpolator_ARRAY_API
+
+/* Python.h (pulled in by ndp_py.h) must be included before any standard
+ * header: pyconfig.h defines feature-test macros such as _POSIX_C_SOURCE
+ * and _XOPEN_SOURCE, and if a libc header has already set them (recent
+ * glibc defaults _POSIX_C_SOURCE to 202405L) the redefinition is a warning,
+ * which -Werror turns into a build failure. */
+#include "ndp_py.h"
+
 #include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Required by numpy C-API. It defines a unique symbol to be used in other
- * C source files and header files. */
-#define PY_ARRAY_UNIQUE_SYMBOL cndpolator_ARRAY_API
-
 #include "ndpolator.h"
 #include "ndp_types.h"
-#include "ndp_py.h"
 
 /* Internal function for printing ndarray flags from C for debugging */
 void _ainfo(PyArrayObject *array, int print_data)
