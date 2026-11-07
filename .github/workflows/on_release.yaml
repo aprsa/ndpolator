@@ -33,7 +33,7 @@ jobs:
             - name: Build wheels
               uses: pypa/cibuildwheel@v4.3.5
               env:
-                CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+                CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
                 CIBW_SKIP: "*-win32 *_i686"
                 CIBW_ENVIRONMENT: "NDPOLATOR_WERROR=1"  # treat compiler warnings as errors in CI
                 CIBW_ARCHS_MACOS: "x86_64 arm64"
