@@ -94,39 +94,75 @@ void _ainfo(PyArrayObject *array, int print_data)
  * These functions create ndpolator data structures from Python objects
  * ==================================================================== */
 
-ndp_axes *ndp_axes_new_from_python(PyObject *py_axes, int nbasic)
+ndp_py_table *ndp_py_table_new(PyObject *py_axes, int nbasic, PyObject *py_grid)
 {
+    ndp_py_table *pytable;
+    ndp_axis **axis;
     ndp_axes *axes;
+    PyObject *converted_axes, *converted_grid;
+    PyArrayObject *grid_array;
+    int naxes, ndims, vdim;
 
-    int naxes = (int) PyTuple_Size(py_axes);
-    ndp_axis **axis = malloc(naxes*sizeof(*axis));
-
-    if (nbasic == 0) nbasic = naxes;
-
-    for (int i = 0; i < naxes; i++) {
-        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GetItem(py_axes, i);
-        int py_axis_len = (int) PyArray_DIM(py_axis, 0);
-        double *py_axis_data = (double *) PyArray_DATA(py_axis);
-        axis[i] = ndp_axis_new_from_data(py_axis_len, py_axis_data, /* owns_data = */ 0);
+    if (!PyTuple_Check(py_axes)) {
+        PyErr_SetString(PyExc_TypeError, "axes must be a tuple of ndarrays");
+        return NULL;
     }
 
+    naxes = (int) PyTuple_GET_SIZE(py_axes);
+    if (nbasic == 0) nbasic = naxes;
+
+    /* The table borrows the array buffers, so hold a reference to a
+     * C-contiguous NPY_DOUBLE version of every axis and of the grid for as
+     * long as the table lives. PyArray_FROM_OTF() returns the array itself
+     * (with a new reference) when it already satisfies the requirements and
+     * a converted copy otherwise. */
+    converted_axes = PyTuple_New(naxes);
+    if (!converted_axes)
+        return NULL;
+
+    for (int i = 0; i < naxes; i++) {
+        PyObject *py_axis = PyArray_FROM_OTF(PyTuple_GET_ITEM(py_axes, i), NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+        if (!py_axis) {
+            Py_DECREF(converted_axes);
+            return NULL;
+        }
+        PyTuple_SET_ITEM(converted_axes, i, py_axis);  /* steals the reference */
+    }
+
+    converted_grid = PyArray_FROM_OTF(py_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    if (!converted_grid) {
+        Py_DECREF(converted_axes);
+        return NULL;
+    }
+
+    axis = malloc(naxes * sizeof(*axis));
+    for (int i = 0; i < naxes; i++) {
+        PyArrayObject *py_axis = (PyArrayObject *) PyTuple_GET_ITEM(converted_axes, i);
+        axis[i] = ndp_axis_new_from_data((int) PyArray_SIZE(py_axis), (double *) PyArray_DATA(py_axis), /* owns_data = */ 0);
+    }
     axes = ndp_axes_new_from_data(naxes, nbasic, axis);
 
-    return axes;
+    grid_array = (PyArrayObject *) converted_grid;
+    ndims = PyArray_NDIM(grid_array);
+    vdim = (int) PyArray_DIM(grid_array, ndims-1);
+
+    pytable = malloc(sizeof(*pytable));
+    pytable->table = ndp_table_new_from_data(axes, vdim, (double *) PyArray_DATA(grid_array), /* owns_data = */ 0);
+    pytable->py_axes = converted_axes;
+    pytable->py_grid = converted_grid;
+
+    return pytable;
 }
 
-ndp_table *ndp_table_new_from_python(PyObject *py_axes, int nbasic, PyArrayObject *py_grid)
+void ndp_py_table_free(ndp_py_table *pytable)
 {
-    ndp_axes *axes = ndp_axes_new_from_python(py_axes, nbasic);
+    if (!pytable)
+        return;
 
-    int ndims = PyArray_NDIM(py_grid);
-    int vdim = (int) PyArray_DIM(py_grid, ndims-1);
-
-    /* work around the misbehaved array: */
-    PyArrayObject *py_behaved_grid = (PyArrayObject *) PyArray_FROM_OTF((PyObject *) py_grid, NPY_DOUBLE, NPY_ARRAY_CARRAY);
-    double *grid = (double *) PyArray_DATA(py_behaved_grid);
-
-    return ndp_table_new_from_data(axes, vdim, grid, /* owns_data = */ 0);
+    ndp_table_free(pytable->table);
+    Py_XDECREF(pytable->py_axes);
+    Py_XDECREF(pytable->py_grid);
+    free(pytable);
 }
 
 /* ====================================================================
@@ -202,7 +238,7 @@ static PyObject *py_import_query_pts(PyObject *self, PyObject *args, PyObject *k
 static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     ndp_table *table;
-    int owns_table = 0;
+    ndp_py_table *pytable = NULL;  /* set only when this call owns the table */
 
     PyObject *py_capsule = NULL;
     PyArrayObject *py_query_pts = NULL;
@@ -215,19 +251,20 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOi", kwlist, &py_query_pts, &py_capsule, &py_axes, &py_grid, &nbasic))
         return NULL;
 
-    if (!PyCapsule_IsValid(py_capsule, NULL) && !(py_axes && py_grid)) {
+    if (!PyCapsule_IsValid(py_capsule, NDP_PY_TABLE_CAPSULE_NAME) && !(py_axes && py_grid)) {
         PyErr_SetString(PyExc_ValueError, 
             "Either capsule must be valid or axes and grid must be provided");
         return NULL;
     }
 
-    if (PyCapsule_IsValid(py_capsule, NULL)) {
-        owns_table = 0;
-        table = (ndp_table *) PyCapsule_GetPointer(py_capsule, NULL);
+    if (PyCapsule_IsValid(py_capsule, NDP_PY_TABLE_CAPSULE_NAME)) {
+        table = ((ndp_py_table *) PyCapsule_GetPointer(py_capsule, NDP_PY_TABLE_CAPSULE_NAME))->table;
     }
     else if (py_query_pts && py_axes && py_grid) {
-        owns_table = 1;
-        table = ndp_table_new_from_python(py_axes, nbasic != 0 ? nbasic : (int) PyArray_DIM(py_grid, 0), py_grid);
+        pytable = ndp_py_table_new(py_axes, nbasic != 0 ? nbasic : (int) PyArray_DIM(py_grid, 0), (PyObject *) py_grid);
+        if (!pytable)
+            return NULL;
+        table = pytable->table;
     }
     else
         return NULL;
@@ -247,8 +284,7 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
     ndp_query_pts_free(query_pts);
-    if (owns_table)
-        ndp_table_free(table);
+    ndp_py_table_free(pytable);  /* no-op when the table came from a capsule */
 
     npy_intp ddim[] = {nelems, 1};
     PyObject *py_distances = PyArray_SimpleNewFromData(2, ddim, NPY_DOUBLE, distances);
@@ -262,6 +298,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     PyArrayObject *py_normed_query_pts, *py_indices, *py_flags, *py_grid;
     PyObject *py_axes;
 
+    ndp_py_table *pytable;
     ndp_table *table;
     ndp_query_pts *qpts;
 
@@ -282,6 +319,11 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     naxes = (int) PyArray_DIM(py_indices, 1);
     if (nbasic == 0) nbasic = naxes;
 
+    pytable = ndp_py_table_new(py_axes, nbasic, (PyObject *) py_grid);
+    if (!pytable)
+        return NULL;
+    table = pytable->table;
+
     normed_query_pts = (double *) PyArray_DATA(py_normed_query_pts);
     indices = (int *) PyArray_DATA(py_indices);
     flags = (int *) PyArray_DATA(py_flags);
@@ -289,8 +331,6 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     qpts = ndp_query_pts_new_from_data(nelems, naxes, indices, flags, /* requested= */ NULL, /* normed= */ normed_query_pts);
 
     py_hypercubes = PyTuple_New(nelems);
-
-    table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
 
     hypercubes = ndp_find_hypercubes(qpts, table);
 
@@ -316,7 +356,7 @@ static PyObject *py_hypercubes(PyObject *self, PyObject *args, PyObject *kwargs)
     }
     free(hypercubes);
 
-    ndp_table_free(table);
+    ndp_py_table_free(pytable);
 
     /* only free the container; arrays are owned by python */
     free(qpts);
@@ -338,17 +378,16 @@ static PyObject *py_ainfo(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-/* Destructor for PyCapsule containing ndp_table */
+/* Destructor for PyCapsule containing ndp_py_table */
 static void py_table_capsule_destructor(PyObject *capsule)
 {
-    ndp_table *table = (ndp_table *) PyCapsule_GetPointer(capsule, NULL);
-    if (table)
-        ndp_table_free(table);
+    ndp_py_table_free((ndp_py_table *) PyCapsule_GetPointer(capsule, NDP_PY_TABLE_CAPSULE_NAME));
 }
 
 /* Python wrapper to the ndpolate() function - main entry point */
 static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
 {
+    ndp_py_table *pytable;
     ndp_table *table;
     int capsule_available = 0;
 
@@ -368,17 +407,25 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOiii", kwlist, &py_capsule, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method, &search_algorithm))
         return NULL;
 
-    if (PyCapsule_IsValid(py_capsule, NULL)) {
+    if (PyCapsule_IsValid(py_capsule, NDP_PY_TABLE_CAPSULE_NAME)) {
         capsule_available = 1;
-        table = (ndp_table *) PyCapsule_GetPointer(py_capsule, NULL);
+        pytable = (ndp_py_table *) PyCapsule_GetPointer(py_capsule, NDP_PY_TABLE_CAPSULE_NAME);
     }
     else if (py_query_pts && py_axes && py_grid) {
-        table = ndp_table_new_from_python(py_axes, nbasic, py_grid);
-        py_capsule = PyCapsule_New((void *) table, NULL, py_table_capsule_destructor);
+        pytable = ndp_py_table_new(py_axes, nbasic, (PyObject *) py_grid);
+        if (!pytable)
+            return NULL;
+        /* the capsule owns pytable from here on and frees it when collected: */
+        py_capsule = PyCapsule_New((void *) pytable, NDP_PY_TABLE_CAPSULE_NAME, py_table_capsule_destructor);
+        if (!py_capsule) {
+            ndp_py_table_free(pytable);
+            return NULL;
+        }
     }
     else {
         return NULL;
     }
+    table = pytable->table;
 
     int nelems = (int) PyArray_DIM(py_query_pts, 0);
     double *qpts = PyArray_DATA(py_query_pts);
