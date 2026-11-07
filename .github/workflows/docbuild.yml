@@ -35,10 +35,8 @@ jobs:
                 version: '1.14.0'
             - name: install doxypypy
               run: pip install doxypypy
-            - name: update version in Doxyfile
-              run: bash update_version.sh
             - name: run doxygen
-              run: doxygen docs/Doxyfile
+              run: bash build_docs.sh
             - name: setup github pages
               uses: actions/configure-pages@v6
             - name: upload docs
