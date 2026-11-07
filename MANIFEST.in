@@ -1,6 +1,5 @@
 include README.md
 include LICENSE
-include update_version.sh
 include build_docs.sh
 include src/*.c
 include src/*.h
