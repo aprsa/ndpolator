@@ -15,11 +15,9 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 # Recent changes
 
-## ndpolator 1.3.3 (unreleased)
+## ndpolator 1.3.3
 
-* fixes `linear` extrapolation along associated axes: off-grid queries in the lower half of an associated-axis cell were extrapolated from the cell below, and in the first cell (or on a length-2 associated axis) one cell too high. In PHOEBE this caused single-phase flux spikes in light curves computed with `atm_extrapolation_method='linear'`. `nearest` and `none` extrapolation and the returned distances are unchanged.
-
-* adds unit tests for associated axes, run with both search algorithms.
+* fixes linear extrapolation along associated axes where off-grid queries in the lower half of an associated-axis hypercube were extrapolated from an off-by-1 hypercube.
 
 ## ndpolator 1.3.2
 
