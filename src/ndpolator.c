@@ -261,8 +261,17 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
                 }
             }
             else if (extrapolation_method == NDP_METHOD_LINEAR) {
-                /* For LINEAR method, calculate squared distance to nearest edge/face/vertex of hypercube */
+                /* For LINEAR method, calculate squared distance to nearest edge/face/vertex of hypercube
+                 * using rounded coordinates. */
                 *dist = ndp_distance(normed_elem, elem_index, coords, table);
+                
+                /* The LINEAR method interpolates along associated axes inside the cell that encloses the
+                 * query, the same cell that on-grid interpolation uses, so we need to return that
+                 * hypercube's superior corner. Otherwise we would be off by 1 in the associated axes.
+                 */
+                for (int j = table->axes->nbasic; j < table->axes->len; j++) {
+                    coords[j] = elem_index[j];
+                }
             }
             
             if (debug) {
@@ -351,7 +360,9 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
     }
 
     for (int j = table->axes->nbasic; j < table->axes->len; j++) {
-        coords[j] = (int) max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
+        /* superior corner of the enclosing hypercube for LINEAR and rounded for NEAREST: */
+        coords[j] = extrapolation_method == NDP_METHOD_LINEAR ? elem_index[j] :
+            (int) max(0, min(table->axes->axis[j]->len-1, round(elem_index[j]+normed_elem[j]-1)));
         if (debug)
             printf("%d ", coords[j]);
     }
