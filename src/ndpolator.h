@@ -102,6 +102,11 @@ typedef enum {
   * The search_algorithm parameter determines whether to use k-d tree or linear search.
   * K-d tree has O(log N) complexity vs O(N) for linear search, but has upfront
   * construction cost that may not be worthwhile for small grids.
+  *
+  * Associated axes are not searched. For NDP_METHOD_LINEAR their returned
+  * coordinates are the superior corner of the cell that encloses the query
+  * (elem_index, as for on-grid interpolation); for NDP_METHOD_NEAREST they are
+  * the nearest node. The distance always uses the nearest node.
   */
 
 int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_table *table, ndp_extrapolation_method extrapolation_method, ndp_search_algorithm search_algorithm, double *dist);
