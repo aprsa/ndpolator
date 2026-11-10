@@ -131,6 +131,15 @@ int *ndp_find_nearest(double *normed_elem, int *elem_index, int *elem_flag, ndp_
   * the grid boundaries are flagged by NDP_OUT_OF_BOUNDS. Finally, all
   * components that do fall within the grid are flagged by NDP_ON_GRID.
   *
+  * A component coincides with a vertex when it lies within 1e-6 of the width
+  * of its cell from either end of that cell. The tolerance is relative to the
+  * cell, so it does not depend on the scale of axis values. The flags are
+  * mutually exclusive: a component within the tolerance of the first or the
+  * last axis vertex is flagged by NDP_ON_VERTEX even if it lies marginally
+  * outside of the axis span. The normalized coordinate of a component flagged
+  * by NDP_ON_VERTEX is close to 0 when the vertex is the inferior corner of
+  * the cell (index-1), and close to 1 when it is the superior corner (index).
+  *
   * @return Allocated ndp_query_pts structure (caller must free)
   */
 
