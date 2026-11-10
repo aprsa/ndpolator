@@ -19,6 +19,10 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 * fixes linear extrapolation along associated axes where off-grid queries in the lower half of an associated-axis hypercube were extrapolated from an off-by-1 hypercube.
 
+* fixes hypercube lookup on finely spaced axes.
+
+* marginally out-of-bounds query points are now treated as boundary vertices.
+
 ## ndpolator 1.3.2
 
 * raises minimal python version to 3.10 (3.9 reached EOL in Oct 2025).

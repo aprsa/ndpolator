@@ -29,25 +29,38 @@
 int find_first_geq_than(ndp_axis *axis, int l, int r, double x, double rtol, int *flag)
 {
     int debug = 0;
-    int m = l + (r - l) / 2;
+    double t;
 
+    /* Exact bisection: l ends up as the smallest index with axis->val[l] > x,
+     * clamped to the last cell, so val[l-1] <= x < val[l] for any x within the
+     * axis span. The comparison must not involve a tolerance: a tolerance in
+     * axis units picks the wrong cell on finely spaced axes and vanishes on
+     * axes with large values! */
     while (l != r) {
-        if (x + rtol > axis->val[m])
+        int m = l + (r - l) / 2;
+
+        if (x >= axis->val[m])
             l = m + 1;
         else
             r = m;
-
-        m = l + (r - l) / 2;
     }
 
-    *flag = (x < axis->val[0] || x > axis->val[axis->len-1]) ? NDP_OUT_OF_BOUNDS : NDP_ON_GRID;
+    /* Position of x within the cell, in units of the cell width; rtol is
+     * compared against this, so it is scale-free. */
+    t = (x - axis->val[l-1]) / (axis->val[l] - axis->val[l-1]);
 
-    if ( fabs((x - axis->val[l-1])/(axis->val[l] - axis->val[l-1])) < rtol ||
-         (l == axis->len - 1 && fabs((x - axis->val[l-1])/(axis->val[l] - axis->val[l-1])-1) < rtol) )
-        *flag |= NDP_ON_VERTEX;
+    /* Flags are mutually exclusive. A component within rtol of either end of
+     * its cell is on a vertex, including just outside of the axis span, so
+     * round-off at the grid boundary does not turn it out-of-bounds. */
+    if (fabs(t) < rtol || fabs(t - 1) < rtol)
+        *flag = NDP_ON_VERTEX;
+    else if (x < axis->val[0] || x > axis->val[axis->len-1])
+        *flag = NDP_OUT_OF_BOUNDS;
+    else
+        *flag = NDP_ON_GRID;
 
     if (debug)
-        printf("l=%d x=%f a[l-1]=%f a[l]=%f rtol=%f flag=%d\n", l, x, axis->val[l-1], axis->val[l], rtol, *flag);
+        printf("l=%d x=%f a[l-1]=%f a[l]=%f t=%f rtol=%f flag=%d\n", l, x, axis->val[l-1], axis->val[l], t, rtol, *flag);
 
     return l;
 }
@@ -496,7 +509,8 @@ ndp_hypercube **ndp_find_hypercubes(ndp_query_pts *qpts, ndp_table *table)
         for (int j = 0; j < (1 << hc_size); j++) {
             for (int k = 0, l = 0; k < axes->len; k++) {
                 if ( (NDP_ON_VERTEX & flags[i*axes->len+k]) == NDP_ON_VERTEX) {
-                    /* qpts->normed can either be 0 or 1, with 1 being only on the upper axis boundary: */
+                    /* qpts->normed is within tolerance of either 0 (the vertex is the inferior
+                     * corner, iptr[k]-1) or 1 (the vertex is the superior corner, iptr[k]): */
                     cidx[k] = qpts->normed[i*axes->len+k] > 0.5 ? iptr[k] : iptr[k]-1;
                     /* cidx[k] = iptr[k]-1; */
                     continue;
