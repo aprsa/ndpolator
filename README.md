@@ -23,6 +23,8 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 * marginally out-of-bounds query points are now treated as boundary vertices.
 
+* fixes conversion of non-float64 data types in query_pts.
+
 ## ndpolator 1.3.2
 
 * raises minimal python version to 3.10 (3.9 reached EOL in Oct 2025).

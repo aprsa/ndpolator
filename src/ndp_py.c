@@ -271,7 +271,8 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
     ndp_py_table *pytable = NULL;  /* set only when this call owns the table */
 
     PyObject *py_capsule = NULL;
-    PyArrayObject *py_query_pts = NULL;
+    PyObject *py_query_pts = NULL;
+    PyObject *converted_query_pts;
     PyObject *py_axes = NULL;
     PyArrayObject *py_grid = NULL;
     int nbasic = 0;
@@ -301,10 +302,22 @@ static PyObject *py_distance(PyObject *self, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    int nelems = (int) PyArray_DIM(py_query_pts, 0);
-    double *qpts = (double *) PyArray_DATA(py_query_pts);
+    /* The C code reads query points as a C-contiguous double buffer, so
+     * convert them if necessary and hold a reference to the converted array
+     * until they are imported: */
+    converted_query_pts = PyArray_FROM_OTF(py_query_pts, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    if (!converted_query_pts) {
+        ndp_py_table_free(pytable);  /* no-op when the table came from a capsule */
+        return NULL;
+    }
+
+    int nelems = (int) PyArray_DIM((PyArrayObject *) converted_query_pts, 0);
+    double *qpts = (double *) PyArray_DATA((PyArrayObject *) converted_query_pts);
     ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
     double *distances = malloc(nelems * sizeof(*distances));
+
+    /* query_pts holds its own copy of the query points: */
+    Py_DECREF(converted_query_pts);
 
     for (int i = 0; i < nelems; i++) {
         double *normed_elem = query_pts->normed + i * table->axes->len;
@@ -427,7 +440,8 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
 
     /* default values: */
     PyObject *py_capsule = NULL;
-    PyArrayObject *py_query_pts = NULL;
+    PyObject *py_query_pts = NULL;
+    PyObject *converted_query_pts;
     PyObject *py_axes = NULL;
     PyArrayObject *py_grid = NULL;
     int nbasic = 0;
@@ -439,11 +453,16 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOOiii", kwlist, &py_capsule, &py_query_pts, &py_axes, &py_grid, &nbasic, &extrapolation_method, &search_algorithm))
         return NULL;
 
+    if (!py_query_pts) {
+        PyErr_SetString(PyExc_ValueError, "query_pts must be provided");
+        return NULL;
+    }
+
     if (PyCapsule_IsValid(py_capsule, NDP_PY_TABLE_CAPSULE_NAME)) {
         capsule_available = 1;
         pytable = (ndp_py_table *) PyCapsule_GetPointer(py_capsule, NDP_PY_TABLE_CAPSULE_NAME);
     }
-    else if (py_query_pts && py_axes && py_grid) {
+    else if (py_axes && py_grid) {
         pytable = ndp_py_table_new(py_axes, nbasic, (PyObject *) py_grid);
         if (!pytable)
             return NULL;
@@ -460,10 +479,24 @@ static PyObject *py_ndpolate(PyObject *self, PyObject *args, PyObject *kwargs)
     }
     table = pytable->table;
 
-    int nelems = (int) PyArray_DIM(py_query_pts, 0);
-    double *qpts = PyArray_DATA(py_query_pts);
+    /* The C code reads query points as a C-contiguous double buffer, so
+     * convert them if necessary and hold a reference to the converted array
+     * until they are imported: */
+    converted_query_pts = PyArray_FROM_OTF(py_query_pts, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+    if (!converted_query_pts) {
+        if (!capsule_available)
+            Py_DECREF(py_capsule);  /* created above; frees pytable as well */
+        return NULL;
+    }
+
+    int nelems = (int) PyArray_DIM((PyArrayObject *) converted_query_pts, 0);
+    double *qpts = (double *) PyArray_DATA((PyArrayObject *) converted_query_pts);
 
     ndp_query_pts *query_pts = ndp_query_pts_import(nelems, qpts, table->axes);
+
+    /* query_pts holds its own copy of the query points: */
+    Py_DECREF(converted_query_pts);
+
     ndp_query *query = ndpolate(query_pts, table, extrapolation_method, search_algorithm);
 
     npy_intp adim[] = {nelems, table->vdim};
