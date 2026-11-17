@@ -15,6 +15,10 @@ Ndpolator is a combined interpolator/extrapolator that operates on sparse (incom
 
 # Recent changes
 
+## ndpolator 1.3.4
+
+* fixes the distance reported by linear extrapolation and by `distance()` for grids with associated axes: it included the offset of the query from the nearest associated-axis node, so it jumped from 0 to up to 0.25 as soon as a basic axis left the grid, and `distance()` was non-zero even inside the grid. Only the part of an associated coordinate outside the axis span now counts.
+
 ## ndpolator 1.3.3
 
 * fixes linear extrapolation along associated axes where off-grid queries in the lower half of an associated-axis hypercube were extrapolated from an off-by-1 hypercube.
