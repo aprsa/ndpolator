@@ -25,8 +25,22 @@ def test_linear_extrapolation_takes_the_enclosing_associated_cell(search_algorit
     q = np.array([[1.5, 1.3], [1.5, 1.7], [0.5, 1.3], [1.5, 0.4], [1.5, 0.0], [-0.5, -0.3], [1.5, 2.5]])
     r = nd.ndpolate("toy", q, extrapolation_method="linear", search_algorithm=search_algorithm)
     np.testing.assert_allclose(np.ravel(r["interps"]), [10.3, 10.7, 10.3, 4.0, 0.0, -3.0, 11.5], rtol=0, atol=1e-12)
-    # distances keep their definition (basic-axis overshoot plus the offset from the nearest associated node)
-    np.testing.assert_allclose(np.ravel(r["dists"]), [0.34, 0.34, 0.0, 0.41, 0.25, 0.34, 0.5], rtol=0, atol=1e-12)
+    # distances: the basic-axis overshoot (0.5^2 in x) plus the overshoot beyond the associated span (m = -0.3, 2.5)
+    np.testing.assert_allclose(np.ravel(r["dists"]), [0.25, 0.25, 0.0, 0.25, 0.25, 0.34, 0.5], rtol=0, atol=1e-12)
+
+
+@SEARCH_ALGORITHMS
+def test_linear_distance_is_continuous_across_a_basic_edge(search_algorithm):
+    """Just outside a basic-axis edge the distance is the basic overshoot alone, wherever m falls between the
+    associated nodes, so it grows continuously from 0 as the query leaves the grid."""
+    nd = _toy([0.0, 1.0, 2.0])
+    m = np.array([0.0, 0.25, 0.5, 0.75, 1.0, 1.3, 1.5, 2.0])
+    for x, dist in ((1.0 - 1e-3, 0.0), (1.0 + 1e-3, 1e-6), (-1e-3, 1e-6)):
+        q = np.column_stack([np.full_like(m, x), m])
+        r = nd.ndpolate("toy", q, extrapolation_method="linear", search_algorithm=search_algorithm)
+        np.testing.assert_allclose(np.ravel(r["dists"]), dist, rtol=0, atol=1e-12)
+        # distance() agrees, including 0 for the points inside the grid
+        np.testing.assert_allclose(np.ravel(nd.distance("toy", q)), dist, rtol=0, atol=1e-12)
 
 
 @SEARCH_ALGORITHMS

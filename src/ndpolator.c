@@ -167,10 +167,10 @@ double ndp_distance(double *normed_elem, int *elem_index, int *nearest_coords, n
      *   Distance is 0 if inside hypercube, otherwise distance to nearest edge/face/vertex.
      *
      * For ASSOCIATED axes (nbasic to len-1):
-     *   nearest_coords[j] is the rounded grid coordinate.
-     *   Distance is the absolute distance from query point to this coordinate.
-     *   (Associated axes are not part of the hypercube structure for LINEAR interpolation;
-     *    they simply contribute their deviation from the nearest grid point)
+     *   LINEAR interpolates along associated axes inside the cell that encloses the query
+     *   (the same cell that on-grid interpolation uses), so a query between two nodes is
+     *   not extrapolated along them. Only the part of the query that lies outside the axis
+     *   span [0, len-1] counts; distance is 0 inside the span. nearest_coords[j] is not used.
      */
 
     double cdist = 0.0;
@@ -196,10 +196,25 @@ double ndp_distance(double *normed_elem, int *elem_index, int *nearest_coords, n
         cdist += diff * diff;
     }
     
-    /* Associated axes: distance from rounded coordinate */
+    /* Associated axes: only the part of the query outside the axis span counts */
     for (int j = table->axes->nbasic; j < table->axes->len; j++) {
         double query_coord = elem_index[j] + normed_elem[j] - 1.0;
-        double diff = query_coord - nearest_coords[j];
+        double hi = (double) (table->axes->axis[j]->len - 1);
+        double diff;
+
+        if (query_coord < 0.0) {
+            /* Query point is below the axis span */
+            diff = -query_coord;
+        }
+        else if (query_coord > hi) {
+            /* Query point is above the axis span */
+            diff = query_coord - hi;
+        }
+        else {
+            /* Query point is inside the axis span, where LINEAR interpolates */
+            diff = 0.0;
+        }
+
         cdist += diff * diff;
     }
 
